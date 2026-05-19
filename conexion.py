@@ -1,16 +1,16 @@
-import mysql.connector
+import sqlite3
+import os
+
+# La base de datos se guarda en la misma carpeta del proyecto
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "tortilleria_carmelita.db")
 
 def conectar():
     try:
-        conexion = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="davidlaid",
-            database="dbelektra",
-            port="3306"
-        )
-        print("Conexión exitosa a MySQL")
+        conexion = sqlite3.connect(DB_PATH)
+        conexion.execute("PRAGMA foreign_keys = ON")
+        print("Conexión exitosa a SQLite")
         return conexion
-    except mysql.connector.Error as e:
-        print(f"Error al conectar a MySQL: {e}")
+    except sqlite3.Error as e:
+        print(f"Error al conectar a SQLite: {e}")
         return None

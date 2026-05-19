@@ -1,278 +1,544 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import conexion  # tu módulo de conexión
-from categorias import CategoriaApp
-from unidades import UnidadApp
+import conexion
 from botones import configurar_estilos
 
 
+# ── Helper compartido ─────────────────────────────────────────────────────────
+
+def _titulo(container, texto):
+    f = tk.Frame(container, bg="#C47A2B", padx=10, pady=6)
+    f.pack(fill=tk.X)
+    tk.Label(f, text=texto, font=("Tahoma", 14, "bold"),
+             fg="#FFF8E7", bg="#C47A2B").pack(side=tk.LEFT)
+    return f
+
+def _estilo_tree():
+    style = ttk.Style()
+    style.theme_use('clam')
+    style.configure("Carmelita.Treeview",
+                    background="#FFFFFF", fieldbackground="#FFFFFF",
+                    foreground="#7B3F00", rowheight=30,
+                    font=("Tahoma", 11))
+    style.configure("Carmelita.Treeview.Heading",
+                    background="#7B3F00", foreground="#F2C94C",
+                    font=("Tahoma", 11, "bold"))
+    style.map("Carmelita.Treeview",
+              background=[("selected", "#C47A2B")],
+              foreground=[("selected", "#FFFFFF")])
 
 
-class ConfiguracionesApp:
-    def __init__(self, container):
-            self.container = container
-            for w in self.container.winfo_children(): 
-                w.destroy()
-            self.container.configure(bg="white")
-            configurar_estilos(self.container)
-            
-            # Configurar peso de fila/columna para el contenedor principal
-            self.container.grid_rowconfigure(0, weight=1)
-            self.container.grid_columnconfigure(0, weight=1)
-            
-            # Cabecera general
-            header = tk.Frame(self.container, bg="#8FC9DB", height=40, padx=4, pady=5)
-            header.pack(fill=tk.X)
-            header.pack_propagate(False)
-            tk.Label(header, text="CONFIGURACIONES", font=("Tahoma",14,"bold"),fg="white",
-                    bg="#8FC9DB").pack(side=tk.LEFT)
+# ══════════════════════════════════════════════════════════════════════════════
+#  GENERAL  —  datos del negocio + precio de tortilla
+# ══════════════════════════════════════════════════════════════════════════════
+class ConfigGeneral:
+    # Claves que se muestran en esta pantalla y sus etiquetas
+    CAMPOS = [
+        ("nombre_negocio",        "Nombre del negocio",          False),
+        ("direccion",             "Dirección",                   False),
+        ("telefono_negocio",      "Teléfono del negocio",        False),
+        ("rfc",                   "RFC (opcional)",               False),
+        ("precio_tortilla",       "Precio por kg de tortilla $", True),   # True = solo numérico
+        ("punto_reorden_default", "Punto de reorden por defecto", True),
+        ("fondo_apertura_default","Fondo de apertura por defecto $", True),
+        ("copias_ticket",         "Copias por ticket",           True),
+        ("impresora_ticket",      "Puerto/nombre de impresora",  False),
+    ]
 
-            # Contenedor principal: nav + content
-            main = tk.Frame(self.container, bg="white", height=500)
-            main.pack(fill=tk.BOTH, expand=True)
-            
-            # Configurar peso para el frame principal
-            main.grid_rowconfigure(1, weight=1)
-            main.grid_columnconfigure(0, weight=1)
-
-            # Barra de navegación
-            nav = tk.Frame(main, bg="#F0F0F0", height=20)
-            nav.pack(fill=tk.X)
-
-            # Label dinámico de sección
-            self.section_title = tk.Label(main, text="", font=("Tahoma",12,"bold"),
-                                        bg="white", anchor="w", pady=5)
-            self.section_title.pack(fill=tk.X, padx=4)
-
-            # Contenedor de vista - AQUÍ ESTÁ EL CAMBIO PRINCIPAL
-            self.content = tk.Frame(main, bg="white")
-            self.content.pack(fill=tk.BOTH, expand=True, padx=4, pady=(0,4))  # Margen inferior
-            
-            # Botones de navegación DEBEN ir después de configurar el frame principal
-            ttk.Button(nav, text="Usuarios",  style="Morado.TButton", width=15,
-                    command=self.on_usuarios).pack(side=tk.LEFT, padx=5, pady=5)
-            ttk.Button(nav, text="Categorías", style="Morado.TButton", width=15,
-                    command=self.on_categorias).pack(side=tk.LEFT, padx=5, pady=5)
-            ttk.Button(nav, text="Unidades",   style="Morado.TButton", width=15,
-                    command=self.on_unidades).pack(side=tk.LEFT, padx=5, pady=5)
-
-            # Arranca en Usuarios
-            self.on_usuarios()
-
-    def _clear(self):
-        for w in self.content.winfo_children(): 
-            w.destroy()
-
-    def on_usuarios(self):
-        # Actualiza título y contenido
-        self.section_title.config(text="Usuarios")
-        self._clear()
-        UsuarioApp(self.content)
-
-    def on_categorias(self):
-        self.section_title.config(text="Categorías")
-        self._clear()
-        CategoriaApp(self.content)
-
-    def on_unidades(self):
-        self.section_title.config(text="Unidades")
-        self._clear()
-        UnidadApp(self.content)
-
-
-class UsuarioApp:
-    """Gestión de Usuarios (sin hora_entrada/hora_salida)."""
     def __init__(self, container):
         self.container = container
-        for w in self.container.winfo_children(): w.destroy()
-        self.db = conexion.conectar()
-        self.cursor = self.db.cursor()
+        self.db        = conexion.conectar()
+        self.cursor    = self.db.cursor()
+        self.vars      = {}          # clave → StringVar
+        configurar_estilos(container)
+        self._build()
 
-        # Variables
-        self.id_var    = tk.StringVar()
-        self.nom_var   = tk.StringVar()
-        self.dept_var  = tk.StringVar()
-        self.sal_var   = tk.StringVar()
-        self.tel_var   = tk.StringVar()
-        self.pwd_var   = tk.StringVar()
-        self.search_var= tk.StringVar()
+    def _build(self):
+        for w in self.container.winfo_children():
+            w.destroy()
+        self.container.configure(bg="#FFF8E7")
+        _titulo(self.container, "⚙️  Configuración — General")
 
-        # Layout principal
-        main = tk.Frame(self.container, bg="white")
-        main.pack(fill=tk.BOTH, expand=True)
+        # Aviso
+        tk.Label(self.container,
+                 text="Los cambios se aplican de inmediato en todo el sistema.",
+                 font=("Tahoma", 9, "italic"),
+                 bg="#FFF8E7", fg="#C47A2B").pack(anchor="w", padx=14, pady=4)
 
-        # Izquierda: búsqueda + tabla
-        left = tk.Frame(main, bg="white")
-        left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        sf = tk.Frame(left, bg="white", padx=4, pady=10); sf.pack(fill=tk.X)
-        tk.Label(sf, text="Buscar ID Usuario:", bg="white").pack(side=tk.LEFT)
-        ttk.Entry(sf, textvariable=self.search_var, width=15,font=("tahoma",11),style='Modern.TEntry').pack(side=tk.LEFT, padx=5)
-        ttk.Button(sf, text="Buscar",style="Gris.TButton",width=6,
-                  command=self.load_users).pack(side=tk.LEFT)
+        # Scroll externo por si la pantalla es pequeña
+        canvas = tk.Canvas(self.container, bg="#FFF8E7", highlightthickness=0)
+        sb     = ttk.Scrollbar(self.container, orient="vertical",
+                               command=canvas.yview)
+        canvas.configure(yscrollcommand=sb.set)
+        sb.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        cols = ("id","dep","nom")
-        self.tree = ttk.Treeview(left, columns=cols, show="headings", height=10)
-        for col, txt, w in [("id","ID Usuario",80),("dep","Departamento",120),("nom","Nombre",180)]:
-            self.tree.heading(col, text=txt)
-            self.tree.column(col, width=w, anchor="center")
-        self.tree.pack(fill=tk.BOTH, expand=True, padx=4, pady=10)
-        sb = ttk.Scrollbar(left, orient="vertical", command=self.tree.yview)
-        sb.pack(side=tk.LEFT, fill=tk.Y,pady=2)
+        frame = tk.Frame(canvas, bg="#FFF8E7")
+        canvas.create_window((0, 0), window=frame, anchor="nw")
+        frame.bind("<Configure>",
+                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        # Cargar valores actuales de la BD
+        self.cursor.execute("SELECT clave, valor FROM Configuracion")
+        bd_vals = dict(self.cursor.fetchall())
+
+        # Generar campos
+        for clave, etiqueta, solo_num in self.CAMPOS:
+            fila = tk.Frame(frame, bg="#FFF8E7")
+            fila.pack(fill=tk.X, padx=30, pady=6)
+
+            tk.Label(fila, text=etiqueta + ":",
+                     font=("Tahoma", 11, "bold"),
+                     bg="#FFF8E7", fg="#7B3F00",
+                     width=34, anchor="w").pack(side=tk.LEFT)
+
+            var = tk.StringVar(value=bd_vals.get(clave, ""))
+            self.vars[clave] = var
+
+            ent = ttk.Entry(fila, textvariable=var,
+                            font=("Tahoma", 11), width=28)
+            ent.pack(side=tk.LEFT, padx=6)
+
+            if solo_num:
+                tk.Label(fila, text="(número)",
+                         font=("Tahoma", 8, "italic"),
+                         bg="#FFF8E7", fg="#C47A2B").pack(side=tk.LEFT)
+
+        # Botón guardar
+        tk.Frame(frame, bg="#FFF8E7", height=10).pack()
+        ttk.Button(frame, text="💾  Guardar cambios",
+                   style="Dorado.TButton", width=22,
+                   command=self._guardar).pack(pady=10)
+
+    def _guardar(self):
+        errores = []
+        for clave, etiqueta, solo_num in self.CAMPOS:
+            valor = self.vars[clave].get().strip()
+            if solo_num and valor:
+                try:
+                    float(valor)
+                except ValueError:
+                    errores.append(f"• {etiqueta}: debe ser un número.")
+
+        if errores:
+            messagebox.showwarning("Valores inválidos",
+                                   "Corrige los siguientes campos:\n\n" +
+                                   "\n".join(errores))
+            return
+
+        for clave, _, _ in self.CAMPOS:
+            valor = self.vars[clave].get().strip()
+            self.cursor.execute("""
+                INSERT INTO Configuracion (clave, valor, descripcion)
+                VALUES (?, ?, '')
+                ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor
+            """, (clave, valor))
+
+        # Sincronizar precio_tortilla también en la tabla Articulo
+        precio_str = self.vars.get("precio_tortilla", tk.StringVar()).get().strip()
+        if precio_str:
+            try:
+                precio = float(precio_str)
+                self.cursor.execute(
+                    "UPDATE Articulo SET precio=? WHERE codigo='TORTILLA001'",
+                    (precio,))
+            except ValueError:
+                pass
+
+        self.db.commit()
+        messagebox.showinfo("Guardado", "✅ Configuración guardada correctamente.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  USUARIOS  —  lista, nuevo, editar, dar de baja  (solo administrador)
+# ══════════════════════════════════════════════════════════════════════════════
+class ConfigUsuarios:
+    def __init__(self, container):
+        self.container = container
+        self.db        = conexion.conectar()
+        self.cursor    = self.db.cursor()
+        self._id_edit  = None        # id del usuario en edición (None = nuevo)
+        configurar_estilos(container)
+        self._build()
+
+    # ── Construcción ──────────────────────────────────────────────────────────
+
+    def _build(self):
+        for w in self.container.winfo_children():
+            w.destroy()
+        self.container.configure(bg="#FFF8E7")
+        _titulo(self.container, "⚙️  Configuración — Usuarios")
+
+        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
+        cuerpo.columnconfigure(0, weight=1)
+        cuerpo.columnconfigure(1, weight=2)
+        cuerpo.rowconfigure(0, weight=1)
+
+        self._build_form(cuerpo)
+        self._build_tabla(cuerpo)
+        self._cargar_tabla()
+
+    def _build_form(self, parent):
+        self.card = tk.LabelFrame(parent, text="  Nuevo usuario  ",
+                                  bg="#FFF8E7", fg="#7B3F00",
+                                  font=("Tahoma", 10, "bold"),
+                                  bd=2, relief="groove")
+        self.card.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=4)
+
+        def campo(label, var_name, ancho=24, show=None):
+            tk.Label(self.card, text=label,
+                     font=("Tahoma", 10, "bold"),
+                     bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+            var = tk.StringVar()
+            setattr(self, var_name, var)
+            kw = {"textvariable": var, "font": ("Tahoma", 11), "width": ancho}
+            if show:
+                kw["show"] = show
+            ttk.Entry(self.card, **kw).pack(padx=16)
+
+        campo("Nombre completo:",   "var_nombre")
+        campo("Teléfono (opcional):","var_telefono")
+
+        # Rol
+        tk.Label(self.card, text="Rol:",
+                 font=("Tahoma", 10, "bold"),
+                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+        self.var_rol = tk.StringVar(value="trabajador")
+        for texto, val in [("Trabajador", "trabajador"),
+                           ("Administrador", "administrador")]:
+            ttk.Radiobutton(self.card, text=texto,
+                            variable=self.var_rol,
+                            value=val).pack(anchor="w", padx=24, pady=2)
+
+        # Contraseña
+        campo("Contraseña:",         "var_pass1", show="•")
+        campo("Confirmar contraseña:","var_pass2", show="•")
+
+        # Nota para edición
+        self.lbl_pass_nota = tk.Label(
+            self.card,
+            text="",
+            font=("Tahoma", 8, "italic"),
+            bg="#FFF8E7", fg="#C47A2B", wraplength=200)
+        self.lbl_pass_nota.pack(anchor="w", padx=16)
+
+        # Botones
+        frame_btns = tk.Frame(self.card, bg="#FFF8E7")
+        frame_btns.pack(pady=14)
+        ttk.Button(frame_btns, text="💾 Guardar",
+                   style="Dorado.TButton", width=13,
+                   command=self._guardar).pack(side=tk.LEFT, padx=5)
+        ttk.Button(frame_btns, text="✖ Cancelar",
+                   style="Peligro.TButton", width=13,
+                   command=self._limpiar).pack(side=tk.LEFT, padx=5)
+
+    def _build_tabla(self, parent):
+        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame.grid(row=0, column=1, sticky="nsew", pady=4)
+
+        acc = tk.Frame(frame, bg="#FFF8E7")
+        acc.pack(fill=tk.X, pady=(0, 6))
+        ttk.Button(acc, text="✏️ Editar",
+                   style="Cafe.TButton", width=12,
+                   command=self._editar).pack(side=tk.LEFT, padx=4)
+        ttk.Button(acc, text="🚫 Dar de baja",
+                   style="Advertencia.TButton", width=14,
+                   command=self._dar_de_baja).pack(side=tk.LEFT, padx=4)
+        ttk.Button(acc, text="✅ Reactivar",
+                   style="Dorado.TButton", width=12,
+                   command=self._reactivar).pack(side=tk.LEFT, padx=4)
+
+        _estilo_tree()
+        cols = ("id", "nombre", "rol", "telefono", "estado")
+        self.tree = ttk.Treeview(frame, columns=cols,
+                                 show="headings", style="Carmelita.Treeview")
+        for col, texto, ancho in [
+            ("id",       "#",         40),
+            ("nombre",   "Nombre",   200),
+            ("rol",      "Rol",      120),
+            ("telefono", "Teléfono", 130),
+            ("estado",   "Estado",    90),
+        ]:
+            self.tree.heading(col, text=texto, anchor="center")
+            self.tree.column(col, width=ancho, anchor="center")
+
+        self.tree.tag_configure("activo",   foreground="#2D6A4F")
+        self.tree.tag_configure("inactivo", foreground="#AAAAAA")
+
+        sb = ttk.Scrollbar(frame, command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
-        self.tree.bind("<ButtonRelease-1>", self.select_user)
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        sb.pack(side=tk.LEFT, fill=tk.Y)
 
-        # Derecha: formulario + botones
-        right = tk.Frame(main, bg="white", padx=4, pady=10)
-        right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        bf = tk.Frame(right, bg="white", pady=10); bf.pack(fill=tk.X)
-        actions = [
-            ("Limpiar Datos", self.new_user, "Azul"),
-            ("Guardar Usuario", self.save_user, "Exito"),
-            ("Eliminar Usuario", self.delete_user, "Peligro")
-        ]
-        for txt, cmd, st in actions:
-            ttk.Button(bf, text=txt, style=f"{st}.TButton", width=15,
-                      command=cmd).pack(side=tk.LEFT, padx=5)
+    # ── Lógica ────────────────────────────────────────────────────────────────
 
-        form = tk.Frame(right, bg="white", padx=4, pady=10)
-        form.pack(fill=tk.BOTH, expand=True)
-        labels = ["ID Usuario:", "Nombre:", "Departamento:", "Salario:", "Teléfono:", "Contraseña:"]
-        for i, lbl in enumerate(labels):
-            tk.Label(form, text=lbl, bg="white").grid(row=i, column=0, sticky=tk.E, padx=5, pady=5)
-        ttk.Entry(form, textvariable=self.id_var, width=25,font=("tahoma",11),style='Modern.TEntry').grid(row=0, column=1)
-        ttk.Entry(form, textvariable=self.nom_var, width=25,font=("tahoma",11),style='Modern.TEntry').grid(row=1, column=1)
-        
-        style = ttk.Style()
-        style.theme_use('clam')  # Necesario para personalización
+    def _cargar_tabla(self):
+        for iid in self.tree.get_children():
+            self.tree.delete(iid)
+        self.cursor.execute("""
+            SELECT id_usuario, nombre, rol, telefono, activo
+            FROM Usuarios ORDER BY nombre
+        """)
+        for id_, nom, rol, tel, activo in self.cursor.fetchall():
+            tag    = "activo" if activo else "inactivo"
+            estado = "Activo" if activo else "Baja"
+            self.tree.insert('', tk.END, iid=str(id_), tags=(tag,), values=(
+                id_, nom, rol.capitalize(), tel or "—", estado))
 
-        # Estilo que replica el Combobox original pero mejorado
-        style.configure('Enhanced.TCombobox',
-                        font=('Tahoma', 11),
-                        foreground='#000000',
-                        background='#FFFFFF',
-                        bordercolor='#707070',
-                        arrowsize=14,
-                        padding=(6, 4),
-                        relief='solid',
-                        borderwidth=1)
+    def _limpiar(self):
+        self._id_edit = None
+        self.card.config(text="  Nuevo usuario  ")
+        self.var_nombre.set("")
+        self.var_telefono.set("")
+        self.var_rol.set("trabajador")
+        self.var_pass1.set("")
+        self.var_pass2.set("")
+        self.lbl_pass_nota.config(text="")
 
-        style.map('Enhanced.TCombobox',
-                fieldbackground=[('readonly', '#FFFFFF')],
-                selectbackground=[('readonly', '#E1E1E1')],
-                selectforeground=[('readonly', '#000000')],
-                bordercolor=[('focus', '#0078D7')],
-                arrowsize=[('pressed', 12), ('!pressed', 14)])
+    def _editar(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Sin selección",
+                                   "Selecciona un usuario para editar.")
+            return
+        self._id_edit = int(sel[0])
+        self.cursor.execute("""
+            SELECT nombre, rol, telefono FROM Usuarios WHERE id_usuario=?
+        """, (self._id_edit,))
+        row = self.cursor.fetchone()
+        if not row:
+            return
+        nom, rol, tel = row
+        self.card.config(text=f"  Editando: {nom}  ")
+        self.var_nombre.set(nom)
+        self.var_telefono.set(tel or "")
+        self.var_rol.set(rol)
+        self.var_pass1.set("")
+        self.var_pass2.set("")
+        self.lbl_pass_nota.config(
+            text="Deja contraseña vacía para no cambiarla.")
 
-        departamentos=["Administrador","Gerencia","Ventas","Cajas","Servicio al Cliente","Bodega"]
-        self.cmb_usuario = ttk.Combobox(
-            form, 
-            values=departamentos,
-            textvariable=self.dept_var,
-            font=('Tahoma', 10),
-            width=25,
-            style='Enhanced.TCombobox',
-            state="readonly"  # Asegura que sea solo de selección
-        ).grid(row=2, column=1)
-        
-        ttk.Entry(form, textvariable=self.sal_var, width=25,font=("tahoma",11),style='Modern.TEntry').grid(row=3, column=1)
-        ttk.Entry(form, textvariable=self.tel_var, width=25,font=("tahoma",11),style='Modern.TEntry').grid(row=4, column=1)
-        self.pwd_entry = ttk.Entry(form, textvariable=self.pwd_var, show="*", width=25,font=("tahoma",11),style='Modern.TEntry')
-        self.pwd_entry.grid(row=5, column=1)
-        tk.Checkbutton(form, text="Mostrar", variable=tk.IntVar(),
-                       command=self.toggle_pwd, bg="white").grid(row=5, column=2)
+    def _guardar(self):
+        nombre   = self.var_nombre.get().strip()
+        telefono = self.var_telefono.get().strip()
+        rol      = self.var_rol.get()
+        pass1    = self.var_pass1.get()
+        pass2    = self.var_pass2.get()
 
-        # Carga inicial
-        self.load_users()
+        if not nombre:
+            messagebox.showwarning("Nombre vacío",
+                                   "Escribe el nombre del usuario.")
+            return
 
-    def toggle_pwd(self):
-        s = self.pwd_entry.cget('show')
-        self.pwd_entry.config(show='' if s=='*' else '*')
+        if self._id_edit is None:
+            # Nuevo usuario — contraseña obligatoria
+            if not pass1:
+                messagebox.showwarning("Sin contraseña",
+                                       "Debes establecer una contraseña.")
+                return
+            if pass1 != pass2:
+                messagebox.showwarning("No coinciden",
+                                       "Las contraseñas no coinciden.")
+                return
+            self.cursor.execute("""
+                INSERT INTO Usuarios (nombre, rol, telefono, contrasena, activo)
+                VALUES (?, ?, ?, ?, 1)
+            """, (nombre, rol, telefono or None, pass1))
+            msg = f"✅ Usuario '{nombre}' creado correctamente."
 
-    def load_users(self):
-        self.tree.delete(*self.tree.get_children())
-        sql = "SELECT id_usuario, departamento, nombre FROM Usuarios"
-        params = ()
-        f = self.search_var.get().strip()
-        if f:
-            sql += " WHERE id_usuario LIKE %s"
-            params = (f"%{f}%",)
-        self.cursor.execute(sql, params)
-        for idu, dep, nm in self.cursor.fetchall():
-            self.tree.insert("", tk.END, values=(idu, dep, nm))
-
-    def select_user(self, _):
-        sel = self.tree.focus()
-        if not sel: return
-        idu = self.tree.item(sel, 'values')[0]
-        self.cursor.execute(
-            "SELECT id_usuario, nombre, departamento, salario, telefono, contraseña FROM Usuarios WHERE id_usuario=%s",
-            (idu,)
-        )
-        rec = self.cursor.fetchone()
-        if rec:
-            uid, nm, dp, sal, tel, pw = rec
-            self.id_var.set(uid)
-            self.nom_var.set(nm)
-            self.dept_var.set(dp)
-            self.sal_var.set(str(sal))
-            self.tel_var.set(tel)
-            self.pwd_var.set(pw)
-
-    def new_user(self):
-        for var in (self.id_var, self.nom_var, self.dept_var,
-                    self.sal_var, self.tel_var, self.pwd_var):
-            var.set("")
-
-    def save_user(self):
-        uid, nm, dp = self.id_var.get().strip(), self.nom_var.get().strip(), self.dept_var.get().strip()
-        sal, tel, pw = self.sal_var.get().strip(), self.tel_var.get().strip(), self.pwd_var.get().strip()
-        # Validaciones
-        if not all([uid, nm, dp, sal, tel, pw]):
-            messagebox.showwarning("Validación", "Todos los campos son obligatorios."); return
-        if not tel.isdigit() or len(tel)!=10:
-            messagebox.showwarning("Validación", "Teléfono inválido."); return
-        if not sal.isdigit():
-            messagebox.showwarning("Validación", "Salario debe ser numérico."); return
-        sal_i = int(sal)
-        # Insert / Update
-        self.cursor.execute("SELECT 1 FROM Usuarios WHERE id_usuario=%s", (uid,))
-        if self.cursor.fetchone():
-            sql = ("UPDATE Usuarios SET nombre=%s, departamento=%s, salario=%s, telefono=%s, contraseña=%s "
-                   "WHERE id_usuario=%s")
-            params = (nm, dp, sal_i, tel, pw, uid)
-            msg = "Usuario actualizado correctamente."
         else:
-            sql = ("INSERT INTO Usuarios (id_usuario, nombre, departamento, salario, telefono, contraseña) "
-                   "VALUES (%s,%s,%s,%s,%s,%s)")
-            params = (uid, nm, dp, sal_i, tel, pw)
-            msg = "Usuario creado correctamente."
-        try:
-            self.cursor.execute(sql, params)
-            self.db.commit()
-            messagebox.showinfo("Éxito", msg)
-            self.load_users()
-            self.new_user()
-        except Exception as e:
-            messagebox.showerror("Error al guardar", str(e))
+            # Edición — contraseña opcional
+            if pass1 or pass2:
+                if pass1 != pass2:
+                    messagebox.showwarning("No coinciden",
+                                           "Las contraseñas no coinciden.")
+                    return
+                self.cursor.execute("""
+                    UPDATE Usuarios
+                    SET nombre=?, rol=?, telefono=?, contrasena=?
+                    WHERE id_usuario=?
+                """, (nombre, rol, telefono or None, pass1, self._id_edit))
+            else:
+                self.cursor.execute("""
+                    UPDATE Usuarios
+                    SET nombre=?, rol=?, telefono=?
+                    WHERE id_usuario=?
+                """, (nombre, rol, telefono or None, self._id_edit))
+            msg = f"✅ Usuario '{nombre}' actualizado."
 
-    def delete_user(self):
-        uid = self.id_var.get().strip()
-        if not uid:
-            messagebox.showwarning("Validación", "ID requerido."); return
-        if not messagebox.askyesno("Confirmar", "¿Eliminar usuario? "): return
-        try:
-            self.cursor.execute("DELETE FROM Usuarios WHERE id_usuario=%s", (uid,))
-            self.db.commit()
-            messagebox.showinfo("Éxito", "Usuario eliminado correctamente.")
-            self.load_users()
-            self.new_user()
-        except Exception as e:
-            messagebox.showerror("Error al eliminar", str(e))
+        self.db.commit()
+        messagebox.showinfo("Guardado", msg)
+        self._limpiar()
+        self._cargar_tabla()
+
+    def _dar_de_baja(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Sin selección",
+                                   "Selecciona un usuario para dar de baja.")
+            return
+        id_usr = int(sel[0])
+
+        self.cursor.execute(
+            "SELECT nombre, rol, activo FROM Usuarios WHERE id_usuario=?",
+            (id_usr,))
+        row = self.cursor.fetchone()
+        if not row:
+            return
+        nombre, rol, activo = row
+
+        if not activo:
+            messagebox.showinfo("Ya inactivo",
+                                f"'{nombre}' ya está dado de baja.")
+            return
+
+        # No permitir dar de baja al último administrador activo
+        if rol == "administrador":
+            self.cursor.execute("""
+                SELECT COUNT(*) FROM Usuarios
+                WHERE rol='administrador' AND activo=1
+            """)
+            if self.cursor.fetchone()[0] <= 1:
+                messagebox.showwarning(
+                    "Operación no permitida",
+                    "No puedes dar de baja al único administrador activo.")
+                return
+
+        if not messagebox.askyesno("Confirmar",
+                                   f"¿Dar de baja a '{nombre}'?\n\n"
+                                   "El usuario no podrá iniciar sesión, "
+                                   "pero su historial se conserva."):
+            return
+
+        self.cursor.execute(
+            "UPDATE Usuarios SET activo=0 WHERE id_usuario=?", (id_usr,))
+        self.db.commit()
+        messagebox.showinfo("Baja aplicada",
+                            f"'{nombre}' fue dado de baja correctamente.")
+        self._cargar_tabla()
+
+    def _reactivar(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Sin selección",
+                                   "Selecciona un usuario para reactivar.")
+            return
+        id_usr = int(sel[0])
+        self.cursor.execute(
+            "SELECT nombre, activo FROM Usuarios WHERE id_usuario=?", (id_usr,))
+        row = self.cursor.fetchone()
+        if not row:
+            return
+        nombre, activo = row
+
+        if activo:
+            messagebox.showinfo("Ya activo",
+                                f"'{nombre}' ya está activo.")
+            return
+
+        self.cursor.execute(
+            "UPDATE Usuarios SET activo=1 WHERE id_usuario=?", (id_usr,))
+        self.db.commit()
+        messagebox.showinfo("Reactivado",
+                            f"✅ '{nombre}' fue reactivado correctamente.")
+        self._cargar_tabla()
 
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.title("Configuraciones")
-    root.state("zoomed")
-    ConfiguracionesApp(root)
-    root.mainloop()
+# ══════════════════════════════════════════════════════════════════════════════
+#  MI CONTRASEÑA  —  cualquier rol puede cambiar la suya
+# ══════════════════════════════════════════════════════════════════════════════
+class ConfigContrasena:
+    def __init__(self, container, usuario=""):
+        self.container = container
+        self.usuario   = usuario      # nombre del usuario activo
+        self.db        = conexion.conectar()
+        self.cursor    = self.db.cursor()
+        configurar_estilos(container)
+        self._build()
+
+    def _build(self):
+        for w in self.container.winfo_children():
+            w.destroy()
+        self.container.configure(bg="#FFF8E7")
+        _titulo(self.container, "⚙️  Configuración — Mi contraseña")
+
+        # Card centrado
+        wrapper = tk.Frame(self.container, bg="#FFF8E7")
+        wrapper.pack(expand=True)
+
+        card = tk.LabelFrame(wrapper,
+                             text=f"  Cambiar contraseña — {self.usuario}  ",
+                             bg="#FFF8E7", fg="#7B3F00",
+                             font=("Tahoma", 11, "bold"),
+                             bd=2, relief="groove")
+        card.pack(padx=40, pady=30, ipadx=20, ipady=10)
+
+        def campo(label, var_name):
+            tk.Label(card, text=label,
+                     font=("Tahoma", 11, "bold"),
+                     bg="#FFF8E7", fg="#7B3F00").pack(anchor="w",
+                                                      padx=20, pady=(14, 2))
+            var = tk.StringVar()
+            setattr(self, var_name, var)
+            ttk.Entry(card, textvariable=var, show="•",
+                      font=("Tahoma", 12), width=26).pack(padx=20)
+
+        campo("Contraseña actual:",      "var_actual")
+        campo("Nueva contraseña:",       "var_nueva")
+        campo("Confirmar nueva contraseña:", "var_confirmar")
+
+        tk.Label(card,
+                 text="Mínimo 2 caracteres.",
+                 font=("Tahoma", 8, "italic"),
+                 bg="#FFF8E7", fg="#C47A2B").pack(anchor="w", padx=22)
+
+        ttk.Button(card, text="🔒  Cambiar contraseña",
+                   style="Dorado.TButton", width=24,
+                   command=self._cambiar).pack(pady=20)
+
+    def _cambiar(self):
+        actual    = self.var_actual.get()
+        nueva     = self.var_nueva.get()
+        confirmar = self.var_confirmar.get()
+
+        if not actual or not nueva or not confirmar:
+            messagebox.showwarning("Campos vacíos",
+                                   "Completa todos los campos.")
+            return
+
+        if len(nueva) < 2:
+            messagebox.showwarning("Contraseña muy corta",
+                                   "La nueva contraseña debe tener al menos 2 caracteres.")
+            return
+
+        if nueva != confirmar:
+            messagebox.showwarning("No coinciden",
+                                   "La nueva contraseña y la confirmación no coinciden.")
+            return
+
+        # Verificar contraseña actual
+        self.cursor.execute("""
+            SELECT id_usuario FROM Usuarios
+            WHERE nombre=? AND contrasena=?
+        """, (self.usuario, actual))
+        row = self.cursor.fetchone()
+
+        if not row:
+            messagebox.showerror("Contraseña incorrecta",
+                                 "La contraseña actual no es correcta.")
+            return
+
+        # Aplicar el cambio
+        self.cursor.execute("""
+            UPDATE Usuarios SET contrasena=? WHERE id_usuario=?
+        """, (nueva, row[0]))
+        self.db.commit()
+
+        messagebox.showinfo("Contraseña actualizada",
+                            "✅ Tu contraseña fue cambiada correctamente.")
+
+        # Limpiar campos
+        self.var_actual.set("")
+        self.var_nueva.set("")
+        self.var_confirmar.set("")

@@ -1,313 +1,380 @@
 import tkinter as tk
-from tkinter import ttk, messagebox,simpledialog 
-import conexion  # Asegúrate de que conexion.py está en el mismo directorio
-from seleccionar_articulo import ArticuloSelector
-from metodo_pago import MetodoPagoApp
+from tkinter import ttk, messagebox
+from datetime import datetime
+import conexion
 from botones import configurar_estilos
+
+CODIGO_TORTILLA = "TORTILLA001"
 
 
 class VentaApp:
     def __init__(self, container, usuario_nombre=None):
-        """
-        container: Tk o Frame donde se incrusta el módulo de ventas.
-        usuario_nombre: nombre del vendedor, usado para buscar su ID en BD.
-        """
-        self.container = container
-        self.usuario_nombre = usuario_nombre or "Vendedor General"
-        # Conexión a BD
-        self.db = conexion.conectar()
-        self.cursor = self.db.cursor()
-        # Obtener ID de usuario desde nombre
-        self.usuario_id = self._get_usuario_id(self.usuario_nombre)
-        # Datos del ticket
-        self.items = {}  # {codigo: [nombre, precio, cantidad, existencia]}
-        # Mostrar interfaz de ventas
-        self.show_sale_ui()
+        self.container      = container
+        self.usuario_nombre = usuario_nombre or "Trabajador General"
+        self.db             = conexion.conectar()
+        self.cursor         = self.db.cursor()
+        self.usuario_id     = self._get_usuario_id(self.usuario_nombre)
+        self.id_turno       = self._get_turno_abierto()
+        self.precio_por_kg  = self._get_precio_tortilla()
+        self.items          = []   # [{nombre, kg, subtotal}]
+
         configurar_estilos(self.container)
-        
-        
-        
+        self._build_ui()
+
+    # ── BD helpers ────────────────────────────────────────────────────────────
+
     def _get_usuario_id(self, nombre):
         try:
-            self.cursor.execute("SELECT id_usuario FROM Usuarios WHERE nombre = %s", (nombre,))
+            self.cursor.execute(
+                "SELECT id_usuario FROM Usuarios WHERE nombre = ?", (nombre,))
             row = self.cursor.fetchone()
             return row[0] if row else None
         except Exception as e:
             messagebox.showerror("Error BD", f"No se pudo obtener ID de usuario: {e}")
             return None
 
-    def _limpiar_contenedor(self):
+    def _get_turno_abierto(self):
+        try:
+            self.cursor.execute(
+                "SELECT id_turno FROM Turno WHERE estado = 'abierto' LIMIT 1")
+            row = self.cursor.fetchone()
+            return row[0] if row else None
+        except:
+            return None
+
+    def _get_precio_tortilla(self):
+        try:
+            self.cursor.execute(
+                "SELECT precio FROM Articulo WHERE codigo = ?", (CODIGO_TORTILLA,))
+            row = self.cursor.fetchone()
+            return float(row[0]) if row else 18.0
+        except:
+            return 18.0
+
+    def _limpiar(self):
         for w in self.container.winfo_children():
             w.destroy()
 
-    
-    def add_article(self, codigo, nombre, precio, existencia, cantidad=1):
-        """Función auxiliar para agregar artículos al ticket"""
-        
-        if codigo in self.items:
-            new_cantidad = self.items[codigo][2] + cantidad
-            if new_cantidad > existencia:
-                messagebox.showwarning("Sin stock", "No hay suficiente existencia.")
-                return False
-            self.items[codigo][2] = new_cantidad
-        else:
-            self.items[codigo] = [nombre, float(precio), cantidad, int(existencia)]
-        self.refresh_ticket()
-        return True
+    # ── UI ────────────────────────────────────────────────────────────────────
 
-    def handle_barcode_entry(self, event):
-        """Maneja la entrada de código de barras"""
-        codigo = self.barcode_entry.get().strip()
-        
-        # Validar longitud del código
-        if len(codigo) not in (12, 13):
-            messagebox.showwarning("Código inválido", "El código debe tener 12 o 13 dígitos.")
-            self.barcode_entry.delete(0, tk.END)
-            return
-            
-        try:
-            # Buscar artículo en la base de datos
-            self.cursor.execute(
-                "SELECT nombre, precio, existencia FROM Articulo WHERE codigo = %s",
-                (codigo,)
-            )
-            row = self.cursor.fetchone()
-            
-            if not row:
-                messagebox.showwarning("Artículo no registrado", "El código no existe en la base de datos.")
-                self.barcode_entry.delete(0, tk.END)
-                return
-                
-            nombre, precio, existencia = row
-            
-            # Pedir cantidad al usuario
-            cantidad = simpledialog.askinteger(
-                "Cantidad",
-                "Ingrese la cantidad:",
-                parent=self.container,
-                minvalue=1,
-                initialvalue=1
-            )
-            
-            if cantidad and self.add_article(codigo, nombre, precio, existencia, cantidad):
-                self.barcode_entry.delete(0, tk.END)
-                
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al buscar artículo: {str(e)}")
-
-    
-    
-    def show_sale_ui(self):
-        self._limpiar_contenedor()
-        self.container.configure(bg="white")
+    def _build_ui(self):
+        self._limpiar()
+        self.container.configure(bg="#FFF8E7")
 
         # Título
-        title = tk.Frame(self.container, bg="#8FC9DB", height=40, padx=10, pady=5)
-        title.pack(side=tk.TOP, fill=tk.X)
-        tk.Label(title, text="VENTAS", font=("Tahoma",14,"bold"),fg="white", bg="#8FC9DB").pack(side=tk.LEFT)
+        title = tk.Frame(self.container, bg="#C47A2B", padx=10, pady=6)
+        title.pack(fill=tk.X)
+        tk.Label(title, text="🛒  VENTAS",
+                 font=("Tahoma", 14, "bold"),
+                 fg="#FFF8E7", bg="#C47A2B").pack(side=tk.LEFT)
+        tk.Label(title, text=f"Precio: ${self.precio_por_kg:.2f} / kg",
+                 font=("Tahoma", 11),
+                 fg="#F2C94C", bg="#C47A2B").pack(side=tk.RIGHT)
 
-        # Botón Agregar Artículo
-        sf = tk.Frame(self.container, bg="white", padx=10, pady=5)
-        sf.pack(fill=tk.X)
-        
-        tk.Label(sf, text="Código de barras:", bg="white",font=("tahoma",10)).pack(side=tk.LEFT)
-        self.barcode_entry = ttk.Entry(sf, width=20)
-        self.barcode_entry.pack(side=tk.LEFT, padx=5)
-        self.barcode_entry.bind("<Return>", self.handle_barcode_entry)
-        
-        
-        ttk.Button(sf, text="Agregar Artículo", style="Azul.TButton", command=self.show_selector_ui).pack(side=tk.LEFT)
+        # Cuerpo en dos columnas
+        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
+        cuerpo.columnconfigure(0, weight=3)
+        cuerpo.columnconfigure(1, weight=2)
+        cuerpo.rowconfigure(0, weight=1)
 
-        # Tabla ticket
-        cols = ("codigo","descripcion","precio","cantidad","importe","existencia")
-        tf = tk.Frame(self.container, bg="white")
-        tf.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        self.tree = ttk.Treeview(tf, columns=cols, show="headings")
-        for c,w in zip(cols,[100,200,80,80,80,80]):
-            self.tree.heading(c, text=c.capitalize(), anchor="center")
-            self.tree.column(c, width=w, anchor="center")
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        ttk.Scrollbar(tf, command=self.tree.yview).pack(side=tk.LEFT, fill=tk.Y)
-        self.tree.configure(yscrollcommand=lambda f,s: None)
+        self._panel_ticket(cuerpo)
+        self._panel_cobro(cuerpo)
 
-        # Configuración del estilo (hazlo una vez al inicio de tu aplicación)
+    def _panel_ticket(self, parent):
+        """Columna izquierda: entrada de kg/precio + tabla del ticket."""
+        left = tk.Frame(parent, bg="#FFF8E7")
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+
+        # ── Entrada ───────────────────────────────────────────────────────────
+        entrada = tk.LabelFrame(left, text="  Agregar venta  ",
+                                bg="#FFF8E7", fg="#7B3F00",
+                                font=("Tahoma", 10, "bold"),
+                                bd=2, relief="groove")
+        entrada.pack(fill=tk.X, pady=(0, 8))
+
+        fila = tk.Frame(entrada, bg="#FFF8E7")
+        fila.pack(padx=10, pady=10)
+
+        # Kilogramos
+        tk.Label(fila, text="Kilogramos:",
+                 font=("Tahoma", 11, "bold"),
+                 bg="#FFF8E7", fg="#7B3F00").grid(row=0, column=0, sticky="e", padx=6, pady=4)
+        self.var_kg = tk.StringVar()
+        self.entry_kg = ttk.Entry(fila, textvariable=self.var_kg,
+                                  font=("Tahoma", 12), width=10)
+        self.entry_kg.grid(row=0, column=1, padx=6, pady=4)
+        self.entry_kg.bind("<Return>",   lambda e: (self._calc_desde_kg(), self.entry_precio.focus()))
+        self.entry_kg.bind("<FocusOut>", lambda e: self._calc_desde_kg())
+
+        tk.Label(fila, text="↔", font=("Tahoma", 14),
+                 bg="#FFF8E7", fg="#C47A2B").grid(row=0, column=2, padx=4)
+
+        # Precio
+        tk.Label(fila, text="Precio ($):",
+                 font=("Tahoma", 11, "bold"),
+                 bg="#FFF8E7", fg="#7B3F00").grid(row=0, column=3, sticky="e", padx=6, pady=4)
+        self.var_precio_item = tk.StringVar()
+        self.entry_precio = ttk.Entry(fila, textvariable=self.var_precio_item,
+                                      font=("Tahoma", 12), width=10)
+        self.entry_precio.grid(row=0, column=4, padx=6, pady=4)
+        self.entry_precio.bind("<FocusOut>", lambda e: self._calc_desde_precio())
+        self.entry_precio.bind("<Return>",   lambda e: (self._calc_desde_precio(), self._agregar()))
+
+        ttk.Button(fila, text="➕ Agregar",
+                   style="Dorado.TButton",
+                   command=self._agregar).grid(row=0, column=5, padx=16)
+
+        tk.Label(entrada,
+                 text="Escribe kg → se calcula el precio  |  Escribe precio → se calculan los kg",
+                 font=("Tahoma", 8), bg="#FFF8E7", fg="#C47A2B").pack(pady=(0, 6))
+
+        # ── Tabla ticket ──────────────────────────────────────────────────────
+        tabla_frame = tk.Frame(left, bg="#FFF8E7")
+        tabla_frame.pack(fill=tk.BOTH, expand=True)
+
         style = ttk.Style()
-        style.theme_use('clam')  # Necesario para personalización
+        style.theme_use('clam')
+        style.configure("Carmelita.Treeview",
+                        background="#FFFFFF", fieldbackground="#FFFFFF",
+                        foreground="#7B3F00", rowheight=30,
+                        font=("Tahoma", 11))
+        style.configure("Carmelita.Treeview.Heading",
+                        background="#7B3F00", foreground="#F2C94C",
+                        font=("Tahoma", 11, "bold"))
+        style.map("Carmelita.Treeview",
+                  background=[("selected", "#C47A2B")],
+                  foreground=[("selected", "#FFFFFF")])
 
-        # Estilo personalizado para el Combobox
-        style.configure('Modern.TCombobox',
-                        font=('Segoe UI', 10),
-                        foreground='#2C3E50',  # Color texto
-                        background='#FFFFFF',   # Color fondo
-                        bordercolor='#BDC3C7', # Color borde
-                        lightcolor='#BDC3C7',
-                        darkcolor='#BDC3C7',
-                        arrowsize=12,          # Tamaño flecha desplegable
-                        padding=(8, 4),        # Padding interno
-                        relief='flat')         # Estilo del borde
+        cols = ("producto", "kilogramos", "precio")
+        self.tree = ttk.Treeview(tabla_frame, columns=cols,
+                                 show="headings", style="Carmelita.Treeview")
+        for col, texto, ancho in [
+            ("producto",   "Producto",   200),
+            ("kilogramos", "Kilogramos", 140),
+            ("precio",     "Precio",     140),
+        ]:
+            self.tree.heading(col, text=texto, anchor="center")
+            self.tree.column(col, width=ancho, anchor="center")
 
-        style.map('Modern.TCombobox',
-                fieldbackground=[('readonly', '#FFFFFF')],
-                selectbackground=[('readonly', '#E8F4F8')],  # Color selección
-                selectforeground=[('readonly', '#2C3E50')],
-                bordercolor=[('focus', '#3498DB')],  # Color borde al enfocar
-                arrowsize=[('pressed', 10), ('!pressed', 12)])
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        ttk.Scrollbar(tabla_frame, command=self.tree.yview).pack(side=tk.LEFT, fill=tk.Y)
+        self.tree.configure(yscrollcommand=lambda f, s: None)
 
-        # Área inferior mejorada
-        bf = tk.Frame(self.container, bg="#F8F9FA", height=70, padx=15, pady=10)  # Fondo más claro
-        bf.pack(side=tk.BOTTOM, fill=tk.X)
+        # Botones ticket
+        btn_row = tk.Frame(left, bg="#FFF8E7")
+        btn_row.pack(fill=tk.X, pady=4)
+        ttk.Button(btn_row, text="Eliminar seleccionado",
+                   style="Peligro.TButton",
+                   command=self._eliminar).pack(side=tk.LEFT, padx=4)
+        ttk.Button(btn_row, text="Vaciar ticket",
+                   style="Peligro.TButton",
+                   command=self._vaciar).pack(side=tk.LEFT, padx=4)
 
-        # Etiqueta con mejor tipografía
-        tk.Label(bf, 
-                text="CLIENTE:", 
-                bg="#F8F9FA",
-                font=('Arial black', 12, 'bold'),
-                fg="#000000").pack(side=tk.LEFT, padx=(0, 10))
+        self.entry_kg.focus()
 
-        # Combobox mejorado
-        self.client_cb = ttk.Combobox(
-            bf, 
-            state="readonly", 
-            width=28,
-            height=10,  # Altura del dropdown
-            style='Modern.TCombobox',
-            font=('Tahoma', 10)
-        )
-        self.load_clients()
-        self.client_cb.pack(side=tk.LEFT, padx=5)
+    def _panel_cobro(self, parent):
+        """Columna derecha: total, monto recibido, cambio y botón cobrar."""
+        right = tk.Frame(parent, bg="#FFF8E7")
+        right.grid(row=0, column=1, sticky="nsew")
 
-        # Añadir ícono opcional (requiere tener la imagen)
+        cobro = tk.LabelFrame(right, text="  Cobro  ",
+                               bg="#FFF8E7", fg="#7B3F00",
+                               font=("Tahoma", 10, "bold"),
+                               bd=2, relief="groove")
+        cobro.pack(fill=tk.BOTH, expand=True)
+
+        # Total
+        tk.Label(cobro, text="Total a cobrar:",
+                 font=("Tahoma", 11), bg="#FFF8E7", fg="#7B3F00").pack(pady=(20, 4))
+        self.lbl_total = tk.Label(cobro, text="$0.00",
+                                  font=("Tahoma", 28, "bold"),
+                                  bg="#FFF8E7", fg="#7B3F00")
+        self.lbl_total.pack()
+
+        ttk.Separator(cobro, orient="horizontal").pack(fill=tk.X, padx=20, pady=15)
+
+        # Monto recibido
+        tk.Label(cobro, text="Monto recibido ($):",
+                 font=("Tahoma", 11, "bold"),
+                 bg="#FFF8E7", fg="#7B3F00").pack(pady=(0, 4))
+        self.var_recibido = tk.StringVar()
+        self.entry_recibido = ttk.Entry(cobro, textvariable=self.var_recibido,
+                                        font=("Tahoma", 14), width=14,
+                                        justify="center")
+        self.entry_recibido.pack()
+        self.var_recibido.trace_add("write", lambda *a: self._calcular_cambio())
+        self.entry_recibido.bind("<Return>", lambda e: self._cobrar())
+
+        # Cambio
+        tk.Label(cobro, text="Cambio:",
+                 font=("Tahoma", 11), bg="#FFF8E7", fg="#7B3F00").pack(pady=(16, 4))
+        self.lbl_cambio = tk.Label(cobro, text="$0.00",
+                                   font=("Tahoma", 22, "bold"),
+                                   bg="#FFF8E7", fg="#2D6A4F")
+        self.lbl_cambio.pack()
+
+        ttk.Separator(cobro, orient="horizontal").pack(fill=tk.X, padx=20, pady=15)
+
+        # Botones
+        ttk.Button(cobro, text="✔  Cobrar",
+                   style="Exito.TButton", width=18,
+                   command=self._cobrar).pack(pady=6)
+        ttk.Button(cobro, text="✖  Cancelar venta",
+                   style="Peligro.TButton", width=18,
+                   command=self._vaciar).pack(pady=6)
+
+    # ── Lógica kg ↔ precio ────────────────────────────────────────────────────
+
+    def _calc_desde_kg(self):
         try:
-            client_icon = tk.PhotoImage(file='client_icon.png').subsample(20, 20)
-            tk.Label(bf, image=client_icon, bg="#F8F9FA").pack(side=tk.LEFT, padx=(10, 0))
-        except:
-            pass  # Si no hay ícono, continuar sin él
+            kg = float(self.var_kg.get().replace(",", "."))
+            self.var_precio_item.set(f"{kg * self.precio_por_kg:.2f}")
+        except ValueError:
+            pass
 
-        # Eliminar y vaciar
-        ttk.Button(sf, text="Eliminar Articulo", style="Turquesa.TButton", command=self.del_producto).pack(side=tk.LEFT, padx=15)
-        ttk.Button(bf, text="Vaciar Ticket", style="Peligro.TButton", command=self.clear_ticket).pack(side=tk.LEFT, padx=5)
-
-        # Subtotal y Total
-        totals_frame = tk.Frame(bf, bg="#FFFFFF")
-        totals_frame.pack(side=tk.RIGHT)
-        self.lbl_sub = tk.Label(totals_frame, text="Subtotal: $0.00",
-                                font=("Tahoma",12,"bold"), bg="#FFFFFF")
-        #self.lbl_sub.pack()
-        self.lbl_tot = tk.Label(totals_frame, text="Total: $0.00",
-                                font=("Tahoma",14,"bold"), bg="#FFFFFF")
-        self.lbl_tot.pack()
-        # Botón Cobrar
-        ttk.Button(totals_frame, text="Cobrar",style="Exito.TButton", width=10,
-                  command=self._open_metodo_pago).pack(pady=5)
-
-        self.refresh_ticket()
-        self.container.bind_all('<Alt_L>', lambda event: self.show_selector_ui())
-
-
-    def load_clients(self):
-        # Carga lista de clientes con su teléfono como clave directamente de la BD
-        self.cursor.execute("SELECT telefono, nombre FROM Cliente")
-        rows = self.cursor.fetchall()
-        # display -> telefono mapping
-        self.client_map = {f"{n} ({t})": t for t,n in rows}
-        # Opciones: sólo las de BD
-        opts = list(self.client_map.keys())
-        self.client_cb['values'] = opts
-        # Seleccionar por defecto el cliente 'Venta General (0000000000)'
-        default = next((opt for opt in opts if opt.startswith('Venta General')), opts[0])
-        self.client_cb.current(opts.index(default))
-        self.client_cb.set(default)
-        
-
-    def show_selector_ui(self):
-        self._limpiar_contenedor()
-        ArticuloSelector(
-            self.container, 
-            on_select_callback=self.on_select,
-            on_cancel_callback=self.show_sale_ui  # Para volver al módulo de ventas
-        )
-
-    def on_select(self, data):
-        if len(data) == 5:
-            codigo, nombre, precio, existencia, cantidad = data
-        else:
-            codigo, nombre, precio, existencia = data
-            cantidad = 1
-        # Verifica si el Treeview existe antes de actualizarlo
-        if hasattr(self, 'tree') and self.tree.winfo_exists():
-            success = self.add_article(codigo, nombre, precio, existencia)
-            if success:
-                self.refresh_ticket()
-            else:
-                messagebox.showwarning("Error", "No se pudo agregar el artículo")
-        else:
-            # Si no existe la interfaz, recrea la vista de ventas
-            self.show_sale_ui()
-            self.add_article(codigo, nombre, precio, existencia, cantidad)
-
-    def _open_metodo_pago(self):
-        # Abrir Toplevel para método de pago
-        top = tk.Toplevel(self.container)
-        top.title('Método de Pago')
-        # Prepara datos
-# Asegura que el valor actual es el que está en pantalla, incluso si se redibujó
+    def _calc_desde_precio(self):
         try:
-            cliente_disp = self.client_cb.get()
-            cliente_tel = self.client_map.get(cliente_disp, '0000000000')  # valor por defecto si no está
-            cliente_nombre = cliente_disp.split(' (')[0]
-        except Exception:
-            cliente_disp = "Venta General (0000000000)"
-            cliente_tel = "0000000000"
-            cliente_nombre = "Venta General"
-            
-        total = sum(info[1] * info[2] for info in self.items.values())
-        productos = [ {'codigo':c, 'precio':info[1], 'cantidad':info[2]} for c,info in self.items.items() ]
-        venta_data = {
-            'usuario_id': self.usuario_id,
-            'cliente_telefono': cliente_tel,
-            'cliente_nombre': cliente_nombre,
-            'total': total,
-            'productos': productos
-        }
-        # Lanza el módulo de pago en ventana propia
-        pago = MetodoPagoApp(
-            top,
-            venta_data,
-            on_finish_callback=self.show_sale_ui,
-            usuario_nombre=self.usuario_nombre
-        )
-        pago.run()
+            precio = float(self.var_precio_item.get().replace(",", "."))
+            self.var_kg.set(f"{precio / self.precio_por_kg:.3f}")
+        except ValueError:
+            pass
 
-    def refresh_ticket(self):
+    def _agregar(self):
+        self._calc_desde_kg()
+        try:
+            kg     = float(self.var_kg.get().replace(",", "."))
+            precio = float(self.var_precio_item.get().replace(",", "."))
+        except ValueError:
+            messagebox.showwarning("Datos incompletos",
+                                   "Escribe los kilogramos o el precio antes de agregar.")
+            return
+        if kg <= 0 or precio <= 0:
+            messagebox.showwarning("Valor inválido", "Los valores deben ser mayores a cero.")
+            return
+
+        self.items.append({"nombre": "Tortilla", "kg": kg, "subtotal": round(precio, 2)})
+        self.var_kg.set("")
+        self.var_precio_item.set("")
+        self.entry_kg.focus()
+        self._refrescar()
+
+    def _refrescar(self):
         for iid in self.tree.get_children():
             self.tree.delete(iid)
-        sub = 0.0
-        for codigo, info in self.items.items():
-            nombre, precio, cantidad, existencia = info
-            imp = precio * cantidad
-            sub += imp
+        total = 0.0
+        for item in self.items:
+            total += item["subtotal"]
             self.tree.insert('', tk.END, values=(
-                codigo, nombre, f"{precio:.2f}", cantidad, f"{imp:.2f}", existencia))
-        self.lbl_sub.config(text=f"Subtotal: ${sub:.2f}")
-        
-        #importe
-        self.lbl_tot.config(text=f"Total: ${sub:.2f}")
+                item["nombre"],
+                f"{item['kg']:.3f} kg",
+                f"${item['subtotal']:.2f}",
+            ))
+        self.lbl_total.config(text=f"${total:.2f}")
+        self._calcular_cambio()
 
-    def del_producto(self):
-        for iid in self.tree.selection():
-            codigo = self.tree.item(iid, 'values')[0]
-            if codigo in self.items:
-                del self.items[codigo]
-        self.refresh_ticket()
+    def _eliminar(self):
+        seleccion = self.tree.selection()
+        if not seleccion:
+            return
+        indices = sorted([self.tree.index(i) for i in seleccion], reverse=True)
+        for idx in indices:
+            if idx < len(self.items):
+                self.items.pop(idx)
+        self._refrescar()
 
-    def clear_ticket(self):
+    def _vaciar(self):
         self.items.clear()
-        self.refresh_ticket()
+        self.var_recibido.set("")
+        self._refrescar()
 
-# Para probar independientemente
+    # ── Cobro ─────────────────────────────────────────────────────────────────
+
+    def _calcular_cambio(self):
+        try:
+            total    = sum(i["subtotal"] for i in self.items)
+            recibido = float(self.var_recibido.get().replace(",", "."))
+            cambio   = recibido - total
+            color    = "#2D6A4F" if cambio >= 0 else "#A93226"
+            self.lbl_cambio.config(text=f"${max(cambio, 0):.2f}", fg=color)
+        except ValueError:
+            self.lbl_cambio.config(text="$0.00", fg="#2D6A4F")
+
+    def _cobrar(self):
+        if not self.items:
+            messagebox.showwarning("Ticket vacío", "Agrega al menos una venta antes de cobrar.")
+            return
+
+        total = sum(i["subtotal"] for i in self.items)
+
+        try:
+            recibido = float(self.var_recibido.get().replace(",", "."))
+        except ValueError:
+            messagebox.showwarning("Monto inválido", "Ingresa el monto recibido del cliente.")
+            return
+
+        if recibido < total:
+            messagebox.showwarning("Monto insuficiente",
+                                   f"El monto recibido (${recibido:.2f}) es menor al total (${total:.2f}).")
+            return
+
+        cambio = round(recibido - total, 2)
+
+        try:
+            self._guardar_venta(total, recibido, cambio)
+            messagebox.showinfo("Venta registrada",
+                                f"✔ Venta completada\n\nTotal: ${total:.2f}\nRecibido: ${recibido:.2f}\nCambio: ${cambio:.2f}")
+            self._vaciar()
+        except Exception as e:
+            messagebox.showerror("Error al guardar", f"No se pudo registrar la venta:\n{e}")
+
+    def _guardar_venta(self, total, recibido, cambio):
+        ahora  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        fecha_solo = datetime.now().strftime("%Y-%m-%d")
+
+        # Generar folio: TRT-00001
+        self.cursor.execute("SELECT COUNT(*) FROM Venta")
+        n = self.cursor.fetchone()[0] + 1
+        folio = f"TRT-{n:05d}"
+
+        self.cursor.execute("""
+            INSERT INTO Venta (folio, fecha, importe, monto_recibido, cambio,
+                               estado, id_turno, id_usuario)
+            VALUES (?, ?, ?, ?, ?, 'completada', ?, ?)
+        """, (folio, ahora, total, recibido, cambio, self.id_turno, self.usuario_id))
+
+        id_venta = self.cursor.lastrowid
+
+        for item in self.items:
+            self.cursor.execute("""
+                INSERT INTO DetalleVenta (id_venta, codigo, cantidad, precio)
+                VALUES (?, ?, ?, ?)
+            """, (id_venta, CODIGO_TORTILLA, item["kg"], item["subtotal"]))
+
+            # Registrar movimiento de inventario
+            self.cursor.execute(
+                "SELECT existencia FROM Articulo WHERE codigo = ?", (CODIGO_TORTILLA,))
+            exist_ant = self.cursor.fetchone()[0]
+            exist_nueva = exist_ant - item["kg"]
+
+            self.cursor.execute("""
+                INSERT INTO MovimientoInventario
+                    (codigo, tipo, cantidad, existencia_anterior,
+                     existencia_nueva, referencia, fecha, id_usuario)
+                VALUES (?, 'salida_venta', ?, ?, ?, ?, ?, ?)
+            """, (CODIGO_TORTILLA, -item["kg"], exist_ant, exist_nueva,
+                  f"Venta {folio}", ahora, self.usuario_id))
+
+            self.cursor.execute(
+                "UPDATE Articulo SET existencia = ? WHERE codigo = ?",
+                (exist_nueva, CODIGO_TORTILLA))
+
+        self.db.commit()
+
+
 if __name__ == '__main__':
     root = tk.Tk()
-    root.title('Ventas')
+    root.title('Ventas — Tortillería Carmelita')
     root.state('zoomed')
-    VentaApp(root, usuario_nombre='Ana Pérez')
+    VentaApp(root, usuario_nombre='Administrador')
     root.mainloop()

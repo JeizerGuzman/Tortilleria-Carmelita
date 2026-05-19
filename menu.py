@@ -1,158 +1,358 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from ventas import VentaApp  # Importa la función de ventas
-from clientes import ClienteApp  # Importa la clase de clientes
-from PIL import Image, ImageTk
-from contraseña import VentanaLogin
-from proveedores import ProveedorApp
-from configuracion import ConfiguracionesApp
 from datetime import datetime
 import locale
-from inventario import InventarioApp
-from historial import HistorialApp
-from botones import configurar_estilos
-
-
-
+from contraseña import VentanaLogin
+from botones import configurar_estilos, UI
 
 class PuntoDeVenta:
-    def __init__(self, root=None,usuario="Administrador"):
+    def __init__(self, root=None, usuario="Administrador", rol="administrador"):
         self.usuario = usuario
-        self.root = root if root else tk.Tk()
-        self.root.title("Punto de Venta - Elektra")
-        self.root.state("zoomed") 
-        self.root.configure(bg="white")
+        self.rol     = rol.lower()
+        self.root    = root if root else tk.Tk()
+        self.root.title("Tortillería Carmelita — Punto de Venta")
+        self.root.state("zoomed")
+        self.root.configure(bg="#FFF8E7")
         self.root.resizable(False, False)
-        configurar_estilos(root)
-        
-        
+        configurar_estilos(self.root)
+
+    # ── Navegación principal ──────────────────────────────────────────────────
+
+    def _limpiar_contenedor(self):
+        for w in self.frame_contenedor.winfo_children():
+            w.destroy()
+        for w in self.frame_secundario.winfo_children():
+            w.destroy()
+        self.frame_secundario.pack_forget()
+
+    def _mostrar_secundario(self, botones):
+        """Muestra una barra secundaria con los botones dados."""
+        self.frame_secundario.pack(side=tk.TOP, fill=tk.X)
+        for w in self.frame_secundario.winfo_children():
+            w.destroy()
+        for texto, comando in botones:
+            ttk.Button(
+                self.frame_secundario,
+                text=texto,
+                style="Cafe.TButton",
+                command=comando,
+                width=18
+            ).pack(side=tk.LEFT, padx=4, pady=4)
+
+    def _turno_abierto(self):
+        """Verifica si hay un turno abierto en la BD."""
+        try:
+            from conexion import conectar
+            db  = conectar()
+            cur = db.cursor()
+            cur.execute("SELECT id_turno FROM Turno WHERE estado = 'abierto' LIMIT 1")
+            row = cur.fetchone()
+            db.close()
+            return row is not None
+        except:
+            return False
+
+    def _solo_admin(self):
+        """Muestra advertencia y devuelve False si el usuario no es administrador."""
+        if self.rol != "administrador":
+            messagebox.showwarning(
+                "Acceso restringido",
+                "Solo el administrador puede acceder a esta sección."
+            )
+            return False
+        return True
+
+    # ── Módulos principales ───────────────────────────────────────────────────
+
+    def on_ventas(self):
+        if not self._turno_abierto():
+            messagebox.showwarning(
+                "Sin turno activo",
+                "No hay ningún turno abierto.\n\nVe a Caja → Abrir turno antes de registrar ventas."
+            )
+            return
+        self._limpiar_contenedor()
+        from ventas import VentaApp
+        VentaApp(self.frame_contenedor, self.usuario)
+
+    def on_inventario(self):
+        self._limpiar_contenedor()
+
+        # Botones base (todos los roles)
+        botones = [
+            ("Ver existencias", self.on_inv_existencias),
+            ("Movimientos",     self.on_inv_movimientos),
+            ("Producción",      self.on_inv_produccion),   # ← nueva línea
+        ]
+
+        # Botones exclusivos de administrador
+        if self.rol == "administrador":
+            botones += [
+                ("Ajuste manual", self.on_inv_ajuste),
+                ("Artículos",     self.on_inv_articulos),
+                ("Categorías",    self.on_inv_categorias),
+            ]
+
+        self._mostrar_secundario(botones)
+        self.on_inv_existencias()
+    
+    def on_inv_produccion(self):
+        self._limpiar_frame()
+        from inventario import InventarioProduccion
+        InventarioProduccion(self.frame_contenedor, self.usuario)
+
+
+    def on_compras(self):
+        if not self._solo_admin():
+            return
+        self._limpiar_contenedor()
+        self._mostrar_secundario([
+            ("Nueva compra",         self.on_comp_nueva),
+            ("Historial de compras", self.on_comp_historial),
+            ("Proveedores",          self.on_comp_proveedores),
+        ])
+        self.on_comp_nueva()
+
+    def on_caja(self):
+        self._limpiar_contenedor()
+
+        # Botones base (todos los roles)
+        botones = [
+            ("Abrir turno",   self.on_caja_abrir),
+            ("Corte de caja", self.on_caja_corte),
+        ]
+
+        # Movimientos de caja solo para administrador
+        if self.rol == "administrador":
+            botones.append(("Movimientos de caja", self.on_caja_movimientos))
+
+        self._mostrar_secundario(botones)
+        self.on_caja_abrir()
+
+    def on_reportes(self):
+        if not self._solo_admin():
+            return
+        self._limpiar_contenedor()
+        self._mostrar_secundario([
+            ("Ventas del día",     self.on_rep_dia),
+            ("Ventas por período", self.on_rep_periodo),
+            ("Cortes anteriores",  self.on_rep_cortes),
+        ])
+        self.on_rep_dia()
+
+    def on_configuracion(self):
+        if not self._solo_admin():
+            return
+        self._limpiar_contenedor()
+        self._mostrar_secundario([
+            ("General",        self.on_conf_general),
+            ("Usuarios",       self.on_conf_usuarios),
+            ("Mi contraseña",  self.on_conf_contrasena),
+        ])
+        self.on_conf_general()
+
+    # ── Sub-módulos Inventario ────────────────────────────────────────────────
+
+    def on_inv_existencias(self):
+        self._limpiar_frame()
+        from inventario import InventarioExistencias
+        InventarioExistencias(self.frame_contenedor)
+
+    def on_inv_movimientos(self):
+        self._limpiar_frame()
+        from inventario import InventarioMovimientos
+        InventarioMovimientos(self.frame_contenedor)
+
+    def on_inv_ajuste(self):
+        self._limpiar_frame()
+        from inventario import InventarioAjuste
+        InventarioAjuste(self.frame_contenedor)
+
+    def on_inv_articulos(self):
+        self._limpiar_frame()
+        from inventario import InventarioArticulos
+        InventarioArticulos(self.frame_contenedor)
+
+    def on_inv_categorias(self):
+        self._limpiar_frame()
+        from inventario import InventarioCategorias
+        InventarioCategorias(self.frame_contenedor)
+
+    # ── Sub-módulos Compras ───────────────────────────────────────────────────
+
+    def on_comp_nueva(self):
+        self._limpiar_frame()
+        from compras import ComprasNueva
+        ComprasNueva(self.frame_contenedor, self.usuario)
+
+    def on_comp_historial(self):
+        self._limpiar_frame()
+        from compras import ComprasHistorial
+        ComprasHistorial(self.frame_contenedor)
+
+    def on_comp_proveedores(self):
+        self._limpiar_frame()
+        from compras import ComprasProveedores
+        ComprasProveedores(self.frame_contenedor)
+
+    # ── Sub-módulos Caja ──────────────────────────────────────────────────────
+
+    def on_caja_abrir(self):
+        self._limpiar_frame()
+        from caja import CajaAbrir
+        CajaAbrir(self.frame_contenedor, self.usuario)
+
+    def on_caja_corte(self):
+        self._limpiar_frame()
+        from caja import CajaCorte
+        CajaCorte(self.frame_contenedor, self.usuario)
+
+    def on_caja_movimientos(self):
+        self._limpiar_frame()
+        from caja import CajaMovimientos
+        CajaMovimientos(self.frame_contenedor, self.usuario)
+
+    # ── Sub-módulos Reportes ──────────────────────────────────────────────────
+
+    def on_rep_dia(self):
+        self._limpiar_frame()
+        from reportes import ReportesDia
+        ReportesDia(self.frame_contenedor, self.usuario)  # pasa usuario para cancelaciones
+
+    def on_rep_periodo(self):
+        self._limpiar_frame()
+        from reportes import ReportesPeriodo
+        ReportesPeriodo(self.frame_contenedor)
+
+    def on_rep_cortes(self):
+        self._limpiar_frame()
+        from reportes import ReportesCortes
+        ReportesCortes(self.frame_contenedor)
+
+    # ── Sub-módulos Configuración ─────────────────────────────────────────────
+
+    def on_conf_general(self):
+        self._limpiar_frame()
+        from configuracion import ConfigGeneral
+        ConfigGeneral(self.frame_contenedor)
+
+    def on_conf_usuarios(self):
+        self._limpiar_frame()
+        from configuracion import ConfigUsuarios
+        ConfigUsuarios(self.frame_contenedor)
+
+    def on_conf_contrasena(self):
+        self._limpiar_frame()
+        from configuracion import ConfigContrasena
+        ConfigContrasena(self.frame_contenedor, self.usuario)
+
+    # ── Utilidades ────────────────────────────────────────────────────────────
+
+    def _limpiar_frame(self):
+        """Limpia solo el contenedor sin tocar la barra secundaria."""
+        for w in self.frame_contenedor.winfo_children():
+            w.destroy()
+
+    # ── Acciones globales ─────────────────────────────────────────────────────
+
     def on_salir(self):
         self.root.destroy()
 
     def cambiar_usuario(self):
-        self.root.destroy()  # Cierra la ventana actual del menú
-        login = VentanaLogin()  # Crea una nueva instancia de login
-        login.run()  # Inicia el mainloop de login
+        self.root.destroy()
+        login = VentanaLogin()
+        login.run()
 
-
-    def on_articulos(self):
-        self._limpiar_contenedor()
-        tk.Label(self.frame_contenedor, text="Aquí irá la configuración de los Articulos",
-                 font=("Tahoma", 20), bg="white").pack(pady=50)
-
-    def on_inventario(self):
-        InventarioApp(self.frame_contenedor)
-
-    def on_proveedores(self):
-        self._limpiar_contenedor()
-        ProveedorApp(self.frame_contenedor)
-
-
-    def on_venta(self):
-        self._limpiar_contenedor()
-        VentaApp(self.frame_contenedor,self.usuario)
-
-    def on_clientes(self):
-        self._limpiar_contenedor()
-        ClienteApp(self.frame_contenedor)
-
-    def _limpiar_contenedor(self):
-        for widget in self.frame_contenedor.winfo_children():
-            widget.destroy()
-
-    def on_configuracion(self):
-        if not self.usuario == "Administrador":
-            messagebox.showinfo("Acceso Denegado","Solo el Administrador puede Ingresar a configuraciones")
-        else:
-            self._limpiar_contenedor()
-            ConfiguracionesApp(self.frame_contenedor)
-
-    def on_reportes(self):
-        self._limpiar_contenedor()
-        HistorialApp(self.frame_contenedor)
+    # ── Fecha y hora ──────────────────────────────────────────────────────────
 
     def actualizar_fecha_hora(self):
-            # Configurar la localización a español}
-            try:
-                locale.setlocale(locale.LC_TIME, "Spanish_Spain.1252")  # Para Windows
-            except:
-                # Si falla, se utilizará la localización por defecto.
-                pass
-            
-            # Se obtiene la fecha y hora actual
-            ahora = datetime.now()
-            # Formato para la fecha, por ejemplo "14/04/2025"
-            fecha_str = ahora.strftime("%A %d de %B de %Y").lower()  
-            # Formato para la hora en formato de 12 horas con AM/PM, por ejemplo "02:45:30 PM"
-            ahora = datetime.now()
-            hora = ahora.strftime("%I:%M:%S")
-            indicador = "AM" if ahora.hour < 12 else "PM"
-            hora_str = f"{hora} {indicador}"
-            
-            # Actualizar las etiquetas
-            self.lbl_fecha.config(text=fecha_str)
-            self.lbl_hora.config(text=hora_str)
-            
-            # Se programa la función para que se ejecute de nuevo en 1000 ms (1 segundo)
-            self.root.after(1000, self.actualizar_fecha_hora)
+        try:
+            locale.setlocale(locale.LC_TIME, "Spanish_Spain.1252")
+        except:
+            pass
+        ahora     = datetime.now()
+        fecha_str = ahora.strftime("%A %d de %B de %Y").lower()
+        hora      = ahora.strftime("%I:%M:%S")
+        indicador = "AM" if ahora.hour < 12 else "PM"
+        self.lbl_fecha.config(text=fecha_str)
+        self.lbl_hora.config(text=f"{hora} {indicador}")
+        self.root.after(1000, self.actualizar_fecha_hora)
+
+    # ── Construcción de la UI ─────────────────────────────────────────────────
 
     def main(self):
-        # Cabecera
-        cabecera = tk.Frame(self.root, bg="#394F66", height=30)
+        es_admin = self.rol == "administrador"
+ 
+        # ── Cabecera ──────────────────────────────────────────────────────────
+        cabecera = tk.Frame(self.root, bg=UI['cabecera_bg'], height=30)
         cabecera.pack(side=tk.TOP, fill=tk.X)
-        tk.Label(cabecera, text="Punto de Venta Elektra", font=("Tahoma", 10, "bold"), bg="#394F66",fg="#FFFFFF").pack(side=tk.LEFT, padx=10, pady=5)
-        tk.Label(cabecera, text=f"Atiende: {self.usuario} ", font=("Tahoma", 10, "bold"), bg="#394F66",fg="#FFFFFF").pack(side=tk.RIGHT, padx=10, pady=5)
-
-        # Menú
-        menu = tk.Frame(self.root, bg="#FFFFFF", height=40)
+        tk.Label(cabecera, text="🫓 Tortillería Carmelita",
+                 font=("Tahoma", 10, "bold"),
+                 bg=UI['cabecera_bg'],
+                 fg=UI['cabecera_fg']).pack(side=tk.LEFT, padx=10, pady=5)
+        tk.Label(cabecera, text=f"Atiende: {self.usuario}",
+                 font=("Tahoma", 10, "bold"),
+                 bg=UI['cabecera_bg'],
+                 fg=UI['cabecera_fg2']).pack(side=tk.RIGHT, padx=10, pady=5)
+ 
+        # ── Menú principal ────────────────────────────────────────────────────
+        menu = tk.Frame(self.root, bg=UI['menu_bg'])
         menu.pack(side=tk.TOP, fill=tk.X)
-
-        # Definimos los botones con sus comandos
-        botones = [
-            ("Ventas", self.on_venta, "Indigo"),          # Azul para Ventas
-            ("Clientes", self.on_clientes, "Indigo"),  # Verde oscuro para Clientes
-            ("Inventario", self.on_inventario, "Indigo"), # Morado para Inventario
-            ("Proveedores", self.on_proveedores, "Indigo"), # Naranja para Proveedores
-            ("Historial", self.on_reportes, "Indigo"),      # Cian para Historial
-            ("Configuración", self.on_configuracion, "Gris") # Gris para Configuración
+ 
+        botones_menu = [
+            ("Ventas",        self.on_ventas,        True),
+            ("Inventario",    self.on_inventario,    True),
+            ("Compras",       self.on_compras,       es_admin),
+            ("Caja",          self.on_caja,          True),
+            ("Reportes",      self.on_reportes,      es_admin),
+            ("Configuración", self.on_configuracion, es_admin),
         ]
-
-        for texto, comando, color in botones:
-            btn = ttk.Button(
-                menu,
-                text=texto,
-                style=f"{color}.TButton",
-                command=comando,
-                width=12  # Mantenemos el ancho que tenías originalmente
-            )
-            btn.pack(side=tk.LEFT, padx=5, pady=5)
-        # Botones lado derecho
-        ttk.Button(menu, text="Salir", style="Peligro.TButton", width=10, command=self.on_salir).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(menu, text="Cambiar Usuario", style="Cian.TButton", width=15, command=self.cambiar_usuario).pack(side=tk.RIGHT, padx=5)
-        
-
-        # Frame contenedor
-        self.frame_contenedor = tk.Frame(self.root, bg="white")
+ 
+        for texto, comando, visible in botones_menu:
+            if visible:
+                ttk.Button(menu, text=texto,
+                           style=UI['menu_btn_style'],
+                           command=comando,
+                           width=14).pack(side=tk.LEFT, padx=4, pady=5)
+ 
+        ttk.Button(menu, text="Salir",
+                   style="Peligro.TButton", width=10,
+                   command=self.on_salir).pack(side=tk.RIGHT, padx=5, pady=5)
+        ttk.Button(menu, text="Cambiar Usuario",
+                   style="Cian.TButton", width=15,
+                   command=self.cambiar_usuario).pack(side=tk.RIGHT, padx=5, pady=5)
+ 
+        # ── Barra secundaria (sub-módulos) ────────────────────────────────────
+        self.frame_secundario = tk.Frame(self.root, bg=UI['secundario_bg'])
+        # No se muestra hasta que se active un módulo con sub-menú
+ 
+        # ── Contenedor principal ──────────────────────────────────────────────
+        self.frame_contenedor = tk.Frame(self.root, bg=UI['fondo'])
         self.frame_contenedor.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
-        self.frame_horario= tk.Frame(self.root,bg="black",height=70)
-        self.frame_horario.pack(side=tk.TOP, fill=tk.BOTH)
-        
-                # Etiqueta para la fecha (alineada a la izquierda)
-        self.lbl_fecha = tk.Label(self.frame_horario, bg="black", fg="white", font=("tahoma", 16))
+ 
+        # ── Barra inferior de fecha/hora ──────────────────────────────────────
+        self.frame_horario = tk.Frame(self.root, bg=UI['horario_bg'], height=35)
+        self.frame_horario.pack(side=tk.BOTTOM, fill=tk.X)
+ 
+        self.lbl_fecha = tk.Label(self.frame_horario,
+                                  bg=UI['horario_bg'],
+                                  fg=UI['horario_fg_fecha'],
+                                  font=("Tahoma", 11))
         self.lbl_fecha.pack(side=tk.LEFT, padx=10)
-        
-        # Etiqueta para la hora (alineada a la derecha)
-        self.lbl_hora = tk.Label(self.frame_horario, bg="black", fg="white", font=("tahoma", 16))
+ 
+        self.lbl_hora = tk.Label(self.frame_horario,
+                                 bg=UI['horario_bg'],
+                                 fg=UI['horario_fg_hora'],
+                                 font=("Tahoma", 11))
         self.lbl_hora.pack(side=tk.RIGHT, padx=10)
-        
-        # Iniciar actualización de fecha y hora
+ 
         self.actualizar_fecha_hora()
-        
-        # Vista por defecto
-        self.on_venta()
-
+ 
+        # Vista por defecto → Ventas
+        self.on_ventas()
+ 
         self.root.mainloop()
+        
 
 if __name__ == "__main__":
     app = PuntoDeVenta()
