@@ -2,15 +2,15 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime, date
 import conexion
-from botones import configurar_estilos
+from botones import configurar_estilos, COLORES_MODULOS
 
 # ── Helper compartido ─────────────────────────────────────────────────────────
 
 def _titulo(container, texto):
-    f = tk.Frame(container, bg="#C47A2B", padx=10, pady=6)
+    f = tk.Frame(container, bg=COLORES_MODULOS['encabezado_bg'], padx=10, pady=6)
     f.pack(fill=tk.X)
     tk.Label(f, text=texto, font=("Tahoma", 14, "bold"),
-             fg="#FFF8E7", bg="#C47A2B").pack(side=tk.LEFT)
+             fg=COLORES_MODULOS['encabezado_fg_claro'], bg=COLORES_MODULOS['encabezado_bg']).pack(side=tk.LEFT)
     return f
 
 def _estilo_tree():
@@ -18,24 +18,24 @@ def _estilo_tree():
     style.theme_use('clam')
     style.configure("Carmelita.Treeview",
                     background="#FFFFFF", fieldbackground="#FFFFFF",
-                    foreground="#7B3F00", rowheight=28,
+                    foreground=COLORES_MODULOS["texto_principal"], rowheight=28,
                     font=("Tahoma", 10))
     style.configure("Carmelita.Treeview.Heading",
-                    background="#7B3F00", foreground="#F2C94C",
+                    background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                     font=("Tahoma", 10, "bold"))
     style.map("Carmelita.Treeview",
-              background=[("selected", "#C47A2B")],
-              foreground=[("selected", "#FFFFFF")])
+              background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+              foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
-def _card_dato(parent, etiqueta, valor, color_valor="#7B3F00"):
+def _card_dato(parent, etiqueta, valor, color_valor=COLORES_MODULOS["texto_principal"]):
     """Tarjeta pequeña para mostrar un dato resumido."""
-    f = tk.Frame(parent, bg="#FFFFFF", bd=1, relief="groove",
+    f = tk.Frame(parent, bg=COLORES_MODULOS["fondo_card"], bd=1, relief="groove",
                  padx=16, pady=10)
     f.pack(side=tk.LEFT, padx=8, pady=4)
     tk.Label(f, text=etiqueta, font=("Tahoma", 9),
-             bg="#FFFFFF", fg="#C47A2B").pack()
+             bg=COLORES_MODULOS["fondo_card"], fg=COLORES_MODULOS["texto_error"]).pack()
     tk.Label(f, text=valor, font=("Tahoma", 15, "bold"),
-             bg="#FFFFFF", fg=color_valor).pack()
+             bg=COLORES_MODULOS["fondo_card"], fg=color_valor).pack()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -53,7 +53,7 @@ class ReportesDia:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
 
         title_frame = _titulo(self.container, "📊  Reportes — Ventas del día")
         ttk.Button(title_frame, text="🔄 Actualizar",
@@ -102,34 +102,34 @@ class ReportesDia:
             salidas = self.cursor.fetchone()[0]
 
         # Tarjetas resumen
-        resumen = tk.Frame(self.container, bg="#FFF8E7")
+        resumen = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         resumen.pack(fill=tk.X, padx=10, pady=10)
 
-        _card_dato(resumen, "Ventas completadas", str(completadas),   "#2D6A4F")
-        _card_dato(resumen, "Ventas canceladas",  str(canceladas),    "#A93226")
-        _card_dato(resumen, "Total recaudado",    f"${importe:.2f}",  "#7B3F00")
-        _card_dato(resumen, "Entradas extra",     f"${entradas:.2f}", "#2D6A4F")
-        _card_dato(resumen, "Gastos / salidas",   f"${salidas:.2f}",  "#A93226")
+        _card_dato(resumen, "Ventas completadas", str(completadas),   COLORES_MODULOS['texto_exito'])
+        _card_dato(resumen, "Ventas canceladas",  str(canceladas),    COLORES_MODULOS['texto_error'])
+        _card_dato(resumen, "Total recaudado",    f"${importe:.2f}",  COLORES_MODULOS['texto_principal'])
+        _card_dato(resumen, "Entradas extra",     f"${entradas:.2f}", COLORES_MODULOS['texto_exito'])
+        _card_dato(resumen, "Gastos / salidas",   f"${salidas:.2f}",  COLORES_MODULOS['texto_error'])
 
         if turno:
             fondo, apertura, quien, _ = turno
             efectivo_est = fondo + importe + entradas - salidas
-            _card_dato(resumen, "Efectivo esperado", f"${efectivo_est:.2f}", "#C47A2B")
+            _card_dato(resumen, "Efectivo esperado", f"${efectivo_est:.2f}", COLORES_MODULOS['texto_error'])
 
         # Info del turno
         if turno:
             fondo, apertura, quien, _ = turno
-            info = tk.Frame(self.container, bg="#FFF8E7")
+            info = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
             info.pack(fill=tk.X, padx=18, pady=2)
             tk.Label(info,
                      text=f"Turno abierto por {quien}  |  Apertura: {apertura}  |  Fondo inicial: ${fondo:.2f}",
                      font=("Tahoma", 9, "italic"),
-                     bg="#FFF8E7", fg="#C47A2B").pack(side=tk.LEFT)
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(side=tk.LEFT)
         else:
             tk.Label(self.container,
                      text="ℹ️  No hay turno abierto en este momento.",
                      font=("Tahoma", 9, "italic"),
-                     bg="#FFF8E7", fg="#A93226").pack(anchor="w", padx=18)
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(anchor="w", padx=18)
 
         ttk.Separator(self.container, orient="horizontal").pack(
             fill=tk.X, padx=10, pady=8)
@@ -137,9 +137,9 @@ class ReportesDia:
         # ── Tabla de ventas del día ───────────────────────────────────────────
         tk.Label(self.container, text=f"Ventas del {hoy}",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=12)
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=12)
 
-        tf = tk.Frame(self.container, bg="#FFF8E7")
+        tf = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         tf.pack(fill=tk.BOTH, expand=True, padx=10, pady=4)
         _estilo_tree()
 
@@ -160,9 +160,9 @@ class ReportesDia:
             self.tree.heading(col, text=texto, anchor="center")
             self.tree.column(col, width=ancho, anchor="center")
 
-        self.tree.tag_configure("cancelada",  foreground="#A93226",
-                                background="#FFF0F0")
-        self.tree.tag_configure("completada", foreground="#2D6A4F")
+        self.tree.tag_configure("cancelada",  foreground=COLORES_MODULOS['texto_error'],
+                                background=COLORES_MODULOS['tag_alerta_bg'])
+        self.tree.tag_configure("completada", foreground=COLORES_MODULOS["texto_exito"])
 
         sb = ttk.Scrollbar(tf, command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
@@ -234,7 +234,7 @@ class ReportesDia:
         """Abre una ventana emergente para capturar el motivo de cancelación."""
         win = tk.Toplevel(self.container)
         win.title("Cancelar ticket")
-        win.configure(bg="#FFF8E7")
+        win.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         win.resizable(False, False)
         win.grab_set()   # bloquea la ventana principal mientras está abierta
 
@@ -247,21 +247,21 @@ class ReportesDia:
 
         tk.Label(win, text="❌  Cancelar ticket",
                  font=("Tahoma", 13, "bold"),
-                 bg="#FFF8E7", fg="#A93226").pack(pady=(18, 4))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(pady=(18, 4))
 
         tk.Label(win,
                  text=f"Folio: {folio}     Total: ${importe:.2f}",
                  font=("Tahoma", 10),
-                 bg="#FFF8E7", fg="#7B3F00").pack()
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack()
 
         tk.Label(win,
                  text="Esta acción no se puede deshacer.\nEl stock de los artículos será restaurado.",
                  font=("Tahoma", 9, "italic"),
-                 bg="#FFF8E7", fg="#C47A2B").pack(pady=4)
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(pady=4)
 
         tk.Label(win, text="Motivo de cancelación (obligatorio):",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=20, pady=(8, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=20, pady=(8, 2))
 
         var_motivo = tk.StringVar()
         ttk.Entry(win, textvariable=var_motivo,
@@ -277,7 +277,7 @@ class ReportesDia:
             win.destroy()
             self._ejecutar_cancelacion(id_venta, motivo)
 
-        frame_btns = tk.Frame(win, bg="#FFF8E7")
+        frame_btns = tk.Frame(win, bg=COLORES_MODULOS["fondo_contenedor"])
         frame_btns.pack(pady=16)
         ttk.Button(frame_btns, text="Confirmar cancelación",
                    style="Peligro.TButton", width=22,
@@ -357,11 +357,11 @@ class ReportesPeriodo:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "📊  Reportes — Ventas por período")
 
         # Filtros
-        filtros = tk.Frame(self.container, bg="#FFF8E7", padx=10, pady=10)
+        filtros = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"], padx=10, pady=10)
         filtros.pack(fill=tk.X)
 
         for texto, var_name, default in [
@@ -370,18 +370,18 @@ class ReportesPeriodo:
         ]:
             tk.Label(filtros, text=texto,
                      font=("Tahoma", 10, "bold"),
-                     bg="#FFF8E7", fg="#7B3F00").pack(side=tk.LEFT, padx=(8, 2))
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(side=tk.LEFT, padx=(8, 2))
             var = tk.StringVar(value=default)
             setattr(self, var_name, var)
             ttk.Entry(filtros, textvariable=var,
                       width=12, font=("Tahoma", 10)).pack(side=tk.LEFT, padx=2)
             tk.Label(filtros, text="(AAAA-MM-DD)",
                      font=("Tahoma", 8),
-                     bg="#FFF8E7", fg="#C47A2B").pack(side=tk.LEFT, padx=(0, 10))
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(side=tk.LEFT, padx=(0, 10))
 
         tk.Label(filtros, text="Usuario:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(side=tk.LEFT, padx=(8, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(side=tk.LEFT, padx=(8, 2))
         self.cursor.execute("SELECT nombre FROM Usuarios ORDER BY nombre")
         usuarios = ["Todos"] + [r[0] for r in self.cursor.fetchall()]
         self.var_usr = tk.StringVar(value="Todos")
@@ -394,11 +394,11 @@ class ReportesPeriodo:
                    command=self._cargar).pack(side=tk.LEFT, padx=12)
 
         # Tarjetas resumen del período
-        self.resumen_frame = tk.Frame(self.container, bg="#FFF8E7")
+        self.resumen_frame = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         self.resumen_frame.pack(fill=tk.X, padx=10, pady=4)
 
         # Tabla
-        tf = tk.Frame(self.container, bg="#FFF8E7")
+        tf = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         tf.pack(fill=tk.BOTH, expand=True, padx=10, pady=4)
         _estilo_tree()
 
@@ -416,8 +416,8 @@ class ReportesPeriodo:
             self.tree.heading(col, text=texto, anchor="center")
             self.tree.column(col, width=ancho, anchor="center")
 
-        self.tree.tag_configure("cancelada",  foreground="#A93226", background="#FFF0F0")
-        self.tree.tag_configure("completada", foreground="#2D6A4F")
+        self.tree.tag_configure("cancelada",  foreground=COLORES_MODULOS["tag_alerta_fg"], background=COLORES_MODULOS["tag_alerta_bg"])
+        self.tree.tag_configure("completada", foreground=COLORES_MODULOS["texto_exito"])
 
         sb = ttk.Scrollbar(tf, command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
@@ -460,10 +460,10 @@ class ReportesPeriodo:
         completadas = sum(1 for r in rows if r[3] == "completada")
         canceladas  = sum(1 for r in rows if r[3] == "cancelada")
 
-        _card_dato(self.resumen_frame, "Ventas completadas", str(completadas),  "#2D6A4F")
-        _card_dato(self.resumen_frame, "Ventas canceladas",  str(canceladas),   "#A93226")
-        _card_dato(self.resumen_frame, "Kg vendidos",        f"{total_kg:.3f}", "#7B3F00")
-        _card_dato(self.resumen_frame, "Total recaudado",    f"${total_imp:.2f}","#C47A2B")
+        _card_dato(self.resumen_frame, "Ventas completadas", str(completadas),  COLORES_MODULOS['texto_exito'])
+        _card_dato(self.resumen_frame, "Ventas canceladas",  str(canceladas),   COLORES_MODULOS['texto_error'])
+        _card_dato(self.resumen_frame, "Kg vendidos",        f"{total_kg:.3f}", COLORES_MODULOS['texto_principal'])
+        _card_dato(self.resumen_frame, "Total recaudado",    f"${total_imp:.2f}",COLORES_MODULOS['texto_error'])
 
         for fecha, folio, imp, estado, usr_n, kg in rows:
             tag = "cancelada" if estado == "cancelada" else "completada"
@@ -490,10 +490,10 @@ class ReportesCortes:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "📊  Reportes — Cortes anteriores")
 
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=2)
         cuerpo.columnconfigure(1, weight=3)
@@ -503,12 +503,12 @@ class ReportesCortes:
         self._detalle_corte(cuerpo)
 
     def _tabla_cortes(self, parent):
-        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame = tk.Frame(parent, bg=COLORES_MODULOS["fondo_contenedor"])
         frame.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
 
         tk.Label(frame, text="Cortes de caja",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", pady=(4, 6))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", pady=(4, 6))
 
         _estilo_tree()
         cols = ("id", "apertura", "cierre", "ventas", "diferencia")
@@ -524,9 +524,9 @@ class ReportesCortes:
             self.tree.heading(col, text=texto, anchor="center")
             self.tree.column(col, width=ancho, anchor="center")
 
-        self.tree.tag_configure("positivo", foreground="#2D6A4F")
-        self.tree.tag_configure("negativo", foreground="#A93226")
-        self.tree.tag_configure("abierto",  foreground="#C47A2B",
+        self.tree.tag_configure("positivo", foreground=COLORES_MODULOS["texto_exito"])
+        self.tree.tag_configure("negativo", foreground=COLORES_MODULOS["texto_error"])
+        self.tree.tag_configure("abierto",  foreground=COLORES_MODULOS["encabezado_bg"],
                                 background="#FFFBE6")
 
         sb = ttk.Scrollbar(frame, command=self.tree.yview)
@@ -566,13 +566,13 @@ class ReportesCortes:
             ))
 
     def _detalle_corte(self, parent):
-        self.frame_det = tk.Frame(parent, bg="#FFF8E7")
+        self.frame_det = tk.Frame(parent, bg=COLORES_MODULOS["fondo_contenedor"])
         self.frame_det.grid(row=0, column=1, sticky="nsew")
 
         tk.Label(self.frame_det,
                  text="Selecciona un corte para ver el detalle.",
                  font=("Tahoma", 10, "italic"),
-                 bg="#FFF8E7", fg="#C47A2B").pack(pady=20)
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(pady=20)
 
     def _mostrar_detalle(self, event=None):
         sel = self.tree.selection()
@@ -603,18 +603,18 @@ class ReportesCortes:
         # Card de resumen
         card = tk.LabelFrame(self.frame_det,
                              text=f"  Detalle — Turno #{id_turno}  ",
-                             bg="#FFF8E7", fg="#7B3F00",
+                             bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"],
                              font=("Tahoma", 10, "bold"),
                              bd=2, relief="groove")
         card.pack(fill=tk.X, padx=4, pady=8, ipadx=10, ipady=6)
 
-        def fila(txt, val, color="#7B3F00"):
-            f = tk.Frame(card, bg="#FFF8E7")
+        def fila(txt, val, color=COLORES_MODULOS['texto_principal']):
+            f = tk.Frame(card, bg=COLORES_MODULOS["fondo_contenedor"])
             f.pack(fill=tk.X, padx=16, pady=2)
             tk.Label(f, text=txt, font=("Tahoma", 10),
-                     bg="#FFF8E7", fg="#7B3F00", anchor="w").pack(side=tk.LEFT)
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"], anchor="w").pack(side=tk.LEFT)
             tk.Label(f, text=val, font=("Tahoma", 10, "bold"),
-                     bg="#FFF8E7", fg=color, anchor="e").pack(side=tk.RIGHT)
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=color, anchor="e").pack(side=tk.RIGHT)
 
         fila("Estado:",            estado.capitalize())
         fila("Apertura:",          apertura)
@@ -623,11 +623,11 @@ class ReportesCortes:
         fila("Cerró:",             usr_c or "—")
         ttk.Separator(card, orient="horizontal").pack(fill=tk.X, padx=16, pady=4)
         fila("Fondo inicial:",     f"${(fondo or 0):.2f}")
-        fila("Total ventas:",      f"${(ventas or 0):.2f}",      "#2D6A4F")
+        fila("Total ventas:",      f"${(ventas or 0):.2f}",      COLORES_MODULOS['texto_exito'])
         fila("Movimientos netos:", f"${(movs or 0):.2f}")
-        fila("Efectivo esperado:", f"${(esperado or 0):.2f}",    "#C47A2B")
+        fila("Efectivo esperado:", f"${(esperado or 0):.2f}",    COLORES_MODULOS['texto_error'])
         fila("Efectivo contado:",  f"${(contado or 0):.2f}")
-        color_dif = "#2D6A4F" if (diferencia or 0) >= 0 else "#A93226"
+        color_dif = COLORES_MODULOS['texto_exito'] if (diferencia or 0) >= 0 else COLORES_MODULOS['texto_error']
         fila("Diferencia:",        f"${(diferencia or 0):.2f}",  color_dif)
         if notas:
             ttk.Separator(card, orient="horizontal").pack(fill=tk.X, padx=16, pady=4)
@@ -636,10 +636,10 @@ class ReportesCortes:
         # Ventas del turno
         tk.Label(self.frame_det, text="Ventas del turno:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=6, pady=(8, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=6, pady=(8, 2))
 
         _estilo_tree()
-        vf = tk.Frame(self.frame_det, bg="#FFF8E7")
+        vf = tk.Frame(self.frame_det, bg=COLORES_MODULOS["fondo_contenedor"])
         vf.pack(fill=tk.BOTH, expand=True, padx=4)
 
         cols = ("folio", "fecha", "importe", "estado")
@@ -654,8 +654,8 @@ class ReportesCortes:
             tv.heading(col, text=texto, anchor="center")
             tv.column(col, width=ancho, anchor="center")
 
-        tv.tag_configure("cancelada",  foreground="#A93226", background="#FFF0F0")
-        tv.tag_configure("completada", foreground="#2D6A4F")
+        tv.tag_configure("cancelada",  foreground=COLORES_MODULOS["tag_alerta_fg"], background=COLORES_MODULOS["tag_alerta_bg"])
+        tv.tag_configure("completada", foreground=COLORES_MODULOS["texto_exito"])
 
         sb2 = ttk.Scrollbar(vf, command=tv.yview)
         tv.configure(yscrollcommand=sb2.set)

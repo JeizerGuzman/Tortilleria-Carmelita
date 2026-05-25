@@ -1,16 +1,16 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import conexion
-from botones import configurar_estilos
+from botones import configurar_estilos, COLORES_MODULOS
 
 
 # ── Helper compartido ─────────────────────────────────────────────────────────
 
 def _titulo(container, texto):
-    f = tk.Frame(container, bg="#C47A2B", padx=10, pady=6)
+    f = tk.Frame(container, bg=COLORES_MODULOS['encabezado_bg'], padx=10, pady=6)
     f.pack(fill=tk.X)
     tk.Label(f, text=texto, font=("Tahoma", 14, "bold"),
-             fg="#FFF8E7", bg="#C47A2B").pack(side=tk.LEFT)
+             fg=COLORES_MODULOS['encabezado_fg_claro'], bg=COLORES_MODULOS['encabezado_bg']).pack(side=tk.LEFT)
     return f
 
 def _estilo_tree():
@@ -18,94 +18,120 @@ def _estilo_tree():
     style.theme_use('clam')
     style.configure("Carmelita.Treeview",
                     background="#FFFFFF", fieldbackground="#FFFFFF",
-                    foreground="#7B3F00", rowheight=30,
+                    foreground=COLORES_MODULOS["texto_principal"], rowheight=30,
                     font=("Tahoma", 11))
     style.configure("Carmelita.Treeview.Heading",
-                    background="#7B3F00", foreground="#F2C94C",
+                    background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                     font=("Tahoma", 11, "bold"))
     style.map("Carmelita.Treeview",
-              background=[("selected", "#C47A2B")],
-              foreground=[("selected", "#FFFFFF")])
+              background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+              foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GENERAL  —  datos del negocio + precio de tortilla
+#  GENERAL 
 # ══════════════════════════════════════════════════════════════════════════════
 class ConfigGeneral:
-    # Claves que se muestran en esta pantalla y sus etiquetas
     CAMPOS = [
-        ("nombre_negocio",        "Nombre del negocio",          False),
-        ("direccion",             "Dirección",                   False),
-        ("telefono_negocio",      "Teléfono del negocio",        False),
-        ("rfc",                   "RFC (opcional)",               False),
-        ("precio_tortilla",       "Precio por kg de tortilla $", True),   # True = solo numérico
-        ("punto_reorden_default", "Punto de reorden por defecto", True),
-        ("fondo_apertura_default","Fondo de apertura por defecto $", True),
-        ("copias_ticket",         "Copias por ticket",           True),
-        ("impresora_ticket",      "Puerto/nombre de impresora",  False),
+        # Del negocio
+        ("nombre_negocio",        "Nombre del negocio",                    False),
+        ("direccion",             "Dirección",                             False),
+        ("telefono_negocio",      "Teléfono del negocio",                  False),
+        ("rfc",                   "RFC (opcional)",                        False),
+        # De operación
+        ("precio_tortilla",       "Precio por kg de tortilla $",           True),
+        ("fondo_apertura_default","Fondo de apertura por defecto $",       True),
+        # Producción — relación harina/tortilla
+        ("kg_por_bulto_harina",   "Peso de un bulto de harina (kg)",       True),
+        ("tortilla_por_bulto",    "Kg de tortilla por bulto de harina",    True),
     ]
 
-    def __init__(self, container):
+    def __init__(self, container, menu_principal=None):
         self.container = container
+        self.menu_principal = menu_principal  # Referencia al menú para actualizar nombre
         self.db        = conexion.conectar()
         self.cursor    = self.db.cursor()
-        self.vars      = {}          # clave → StringVar
+        self.vars      = {}
         configurar_estilos(container)
         self._build()
 
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg="#FFFDE7")
         _titulo(self.container, "⚙️  Configuración — General")
 
-        # Aviso
         tk.Label(self.container,
                  text="Los cambios se aplican de inmediato en todo el sistema.",
                  font=("Tahoma", 9, "italic"),
-                 bg="#FFF8E7", fg="#C47A2B").pack(anchor="w", padx=14, pady=4)
+                 bg="#FFFDE7", fg="#F57F17").pack(anchor="w", padx=14, pady=4)
 
-        # Scroll externo por si la pantalla es pequeña
-        canvas = tk.Canvas(self.container, bg="#FFF8E7", highlightthickness=0)
+        # Scroll
+        canvas = tk.Canvas(self.container, bg="#FFFDE7", highlightthickness=0)
         sb     = ttk.Scrollbar(self.container, orient="vertical",
                                command=canvas.yview)
         canvas.configure(yscrollcommand=sb.set)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        frame = tk.Frame(canvas, bg="#FFF8E7")
+        frame = tk.Frame(canvas, bg="#FFFDE7")
         canvas.create_window((0, 0), window=frame, anchor="nw")
         frame.bind("<Configure>",
                    lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
-        # Cargar valores actuales de la BD
+        # Cargar valores actuales
         self.cursor.execute("SELECT clave, valor FROM Configuracion")
         bd_vals = dict(self.cursor.fetchall())
 
-        # Generar campos
+        # Separador visual antes de la sección de producción
+        seccion_anterior = None
+        secciones = {
+            "nombre_negocio":        "🏪  Datos del negocio",
+            "precio_tortilla":       "🫓  Operación",
+            "kg_por_bulto_harina":   "⚙️  Producción — relación harina / tortilla",
+        }
+
         for clave, etiqueta, solo_num in self.CAMPOS:
-            fila = tk.Frame(frame, bg="#FFF8E7")
-            fila.pack(fill=tk.X, padx=30, pady=6)
+            # Encabezado de sección si aplica
+            if clave in secciones:
+                sec = tk.Frame(frame, bg="#C8E6C9", padx=10, pady=4)
+                sec.pack(fill=tk.X, padx=10, pady=(14, 2))
+                tk.Label(sec, text=secciones[clave],
+                         font=("Tahoma", 10, "bold"),
+                         bg="#C8E6C9", fg="#1B5E20").pack(side=tk.LEFT)
+
+            fila = tk.Frame(frame, bg="#FFFDE7")
+            fila.pack(fill=tk.X, padx=30, pady=5)
 
             tk.Label(fila, text=etiqueta + ":",
                      font=("Tahoma", 11, "bold"),
-                     bg="#FFF8E7", fg="#7B3F00",
-                     width=34, anchor="w").pack(side=tk.LEFT)
+                     bg="#FFFDE7", fg="#1B5E20",
+                     width=36, anchor="w").pack(side=tk.LEFT)
 
             var = tk.StringVar(value=bd_vals.get(clave, ""))
             self.vars[clave] = var
 
             ent = ttk.Entry(fila, textvariable=var,
-                            font=("Tahoma", 11), width=28)
+                            font=("Tahoma", 11), width=24)
             ent.pack(side=tk.LEFT, padx=6)
 
             if solo_num:
                 tk.Label(fila, text="(número)",
                          font=("Tahoma", 8, "italic"),
-                         bg="#FFF8E7", fg="#C47A2B").pack(side=tk.LEFT)
+                         bg="#FFFDE7", fg="#F57F17").pack(side=tk.LEFT)
 
-        # Botón guardar
-        tk.Frame(frame, bg="#FFF8E7", height=10).pack()
+        # Nota explicativa de la relación harina/tortilla
+        nota = tk.Frame(frame, bg="#E8F5E9", padx=12, pady=8)
+        nota.pack(fill=tk.X, padx=30, pady=(0, 8))
+        tk.Label(nota,
+                 text="ℹ️  Ejemplo: si un bulto pesa 20 kg y produce 40 kg de tortilla,\n"
+                      "escribe 20 en 'Peso del bulto' y 40 en 'Kg de tortilla por bulto'.\n"
+                      "El sistema usará estos valores al registrar producción.",
+                 font=("Tahoma", 9, "italic"),
+                 bg="#E8F5E9", fg="#2E7D32",
+                 justify="left").pack(anchor="w")
+
+        tk.Frame(frame, bg="#FFFDE7", height=10).pack()
         ttk.Button(frame, text="💾  Guardar cambios",
                    style="Dorado.TButton", width=22,
                    command=self._guardar).pack(pady=10)
@@ -116,9 +142,19 @@ class ConfigGeneral:
             valor = self.vars[clave].get().strip()
             if solo_num and valor:
                 try:
-                    float(valor)
+                    v = float(valor)
+                    if v < 0:
+                        raise ValueError
                 except ValueError:
-                    errores.append(f"• {etiqueta}: debe ser un número.")
+                    errores.append(f"• {etiqueta}: debe ser un número positivo.")
+
+        # Validación extra: relación de producción debe ser > 0
+        for clave in ("kg_por_bulto_harina", "tortilla_por_bulto"):
+            try:
+                if float(self.vars[clave].get()) <= 0:
+                    errores.append(f"• '{clave}' debe ser mayor a 0.")
+            except ValueError:
+                pass
 
         if errores:
             messagebox.showwarning("Valores inválidos",
@@ -134,20 +170,35 @@ class ConfigGeneral:
                 ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor
             """, (clave, valor))
 
-        # Sincronizar precio_tortilla también en la tabla Articulo
+        # Sincronizar precio_tortilla en Articulo
         precio_str = self.vars.get("precio_tortilla", tk.StringVar()).get().strip()
         if precio_str:
             try:
-                precio = float(precio_str)
                 self.cursor.execute(
                     "UPDATE Articulo SET precio=? WHERE codigo='TORTILLA001'",
-                    (precio,))
+                    (float(precio_str),))
             except ValueError:
                 pass
 
-        self.db.commit()
-        messagebox.showinfo("Guardado", "✅ Configuración guardada correctamente.")
+        # Sincronizar relación en RecetaProduccion
+        try:
+            tortilla_por_bulto = float(self.vars["tortilla_por_bulto"].get())
+            self.cursor.execute("""
+                UPDATE RecetaProduccion
+                SET cantidad_producto = ?
+                WHERE codigo_producto = 'TORTILLA001'
+                  AND codigo_insumo   = 'HARINA001'
+            """, (tortilla_por_bulto,))
+        except ValueError:
+            pass
 
+        self.db.commit()
+        
+        # Recargar nombre del negocio en el menú si cambió
+        if self.menu_principal and hasattr(self.menu_principal, 'recargar_nombre_negocio'):
+            self.menu_principal.recargar_nombre_negocio()
+        
+        messagebox.showinfo("Guardado", "✅ Configuración guardada correctamente.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  USUARIOS  —  lista, nuevo, editar, dar de baja  (solo administrador)
@@ -166,10 +217,10 @@ class ConfigUsuarios:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "⚙️  Configuración — Usuarios")
 
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=1)
         cuerpo.columnconfigure(1, weight=2)
@@ -181,7 +232,7 @@ class ConfigUsuarios:
 
     def _build_form(self, parent):
         self.card = tk.LabelFrame(parent, text="  Nuevo usuario  ",
-                                  bg="#FFF8E7", fg="#7B3F00",
+                                  bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"],
                                   font=("Tahoma", 10, "bold"),
                                   bd=2, relief="groove")
         self.card.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=4)
@@ -189,7 +240,7 @@ class ConfigUsuarios:
         def campo(label, var_name, ancho=24, show=None):
             tk.Label(self.card, text=label,
                      font=("Tahoma", 10, "bold"),
-                     bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
             var = tk.StringVar()
             setattr(self, var_name, var)
             kw = {"textvariable": var, "font": ("Tahoma", 11), "width": ancho}
@@ -203,7 +254,7 @@ class ConfigUsuarios:
         # Rol
         tk.Label(self.card, text="Rol:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_rol = tk.StringVar(value="trabajador")
         for texto, val in [("Trabajador", "trabajador"),
                            ("Administrador", "administrador")]:
@@ -220,11 +271,11 @@ class ConfigUsuarios:
             self.card,
             text="",
             font=("Tahoma", 8, "italic"),
-            bg="#FFF8E7", fg="#C47A2B", wraplength=200)
+            bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"], wraplength=200)
         self.lbl_pass_nota.pack(anchor="w", padx=16)
 
         # Botones
-        frame_btns = tk.Frame(self.card, bg="#FFF8E7")
+        frame_btns = tk.Frame(self.card, bg=COLORES_MODULOS["fondo_contenedor"])
         frame_btns.pack(pady=14)
         ttk.Button(frame_btns, text="💾 Guardar",
                    style="Dorado.TButton", width=13,
@@ -234,10 +285,10 @@ class ConfigUsuarios:
                    command=self._limpiar).pack(side=tk.LEFT, padx=5)
 
     def _build_tabla(self, parent):
-        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame = tk.Frame(parent, bg=COLORES_MODULOS["fondo_contenedor"])
         frame.grid(row=0, column=1, sticky="nsew", pady=4)
 
-        acc = tk.Frame(frame, bg="#FFF8E7")
+        acc = tk.Frame(frame, bg=COLORES_MODULOS["fondo_contenedor"])
         acc.pack(fill=tk.X, pady=(0, 6))
         ttk.Button(acc, text="✏️ Editar",
                    style="Cafe.TButton", width=12,
@@ -263,8 +314,8 @@ class ConfigUsuarios:
             self.tree.heading(col, text=texto, anchor="center")
             self.tree.column(col, width=ancho, anchor="center")
 
-        self.tree.tag_configure("activo",   foreground="#2D6A4F")
-        self.tree.tag_configure("inactivo", foreground="#AAAAAA")
+        self.tree.tag_configure("activo",   foreground=COLORES_MODULOS['texto_exito'])
+        self.tree.tag_configure("inactivo", foreground=COLORES_MODULOS["tag_inactivo_fg"])
 
         sb = ttk.Scrollbar(frame, command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
@@ -460,16 +511,16 @@ class ConfigContrasena:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "⚙️  Configuración — Mi contraseña")
 
         # Card centrado
-        wrapper = tk.Frame(self.container, bg="#FFF8E7")
+        wrapper = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         wrapper.pack(expand=True)
 
         card = tk.LabelFrame(wrapper,
                              text=f"  Cambiar contraseña — {self.usuario}  ",
-                             bg="#FFF8E7", fg="#7B3F00",
+                             bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"],
                              font=("Tahoma", 11, "bold"),
                              bd=2, relief="groove")
         card.pack(padx=40, pady=30, ipadx=20, ipady=10)
@@ -477,7 +528,7 @@ class ConfigContrasena:
         def campo(label, var_name):
             tk.Label(card, text=label,
                      font=("Tahoma", 11, "bold"),
-                     bg="#FFF8E7", fg="#7B3F00").pack(anchor="w",
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w",
                                                       padx=20, pady=(14, 2))
             var = tk.StringVar()
             setattr(self, var_name, var)
@@ -491,7 +542,7 @@ class ConfigContrasena:
         tk.Label(card,
                  text="Mínimo 2 caracteres.",
                  font=("Tahoma", 8, "italic"),
-                 bg="#FFF8E7", fg="#C47A2B").pack(anchor="w", padx=22)
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(anchor="w", padx=22)
 
         ttk.Button(card, text="🔒  Cambiar contraseña",
                    style="Dorado.TButton", width=24,

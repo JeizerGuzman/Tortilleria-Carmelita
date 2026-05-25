@@ -2,16 +2,25 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 import conexion
-from botones import configurar_estilos
+from botones import configurar_estilos, COLORES_MODULOS
 
 # ── Helper compartido ─────────────────────────────────────────────────────────
 
 def _titulo(container, texto):
-    f = tk.Frame(container, bg="#C47A2B", padx=10, pady=6)
+    f = tk.Frame(container, bg=COLORES_MODULOS['encabezado_bg'], padx=10, pady=6)
     f.pack(fill=tk.X)
     tk.Label(f, text=texto, font=("Tahoma", 14, "bold"),
-             fg="#FFF8E7", bg="#C47A2B").pack(side=tk.LEFT)
+             fg=COLORES_MODULOS['encabezado_fg_claro'], bg=COLORES_MODULOS['encabezado_bg']).pack(side=tk.LEFT)
     return f
+
+def _obtener_config(cursor, clave, default=None):
+    """Obtiene un valor de configuración desde la BD."""
+    try:
+        cursor.execute("SELECT valor FROM Configuracion WHERE clave = ?", (clave,))
+        row = cursor.fetchone()
+        return row[0] if row else default
+    except:
+        return default
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -28,7 +37,7 @@ class InventarioExistencias:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
 
         title_frame = _titulo(self.container, "📦  Inventario — Existencias")
         ttk.Button(title_frame, text="🔄 Actualizar",
@@ -36,29 +45,29 @@ class InventarioExistencias:
                    command=self._cargar_tabla).pack(side=tk.RIGHT, padx=6)
 
         # Leyenda
-        leyenda = tk.Frame(self.container, bg="#FFF8E7")
+        leyenda = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         leyenda.pack(fill=tk.X, padx=10, pady=4)
         tk.Label(leyenda, text="🔴 Stock en punto de reorden o menor",
-                 font=("Tahoma", 9), bg="#FFF8E7", fg="#A93226").pack(side=tk.LEFT, padx=8)
+                 font=("Tahoma", 9), bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(side=tk.LEFT, padx=8)
         tk.Label(leyenda, text="🟢 Stock normal",
-                 font=("Tahoma", 9), bg="#FFF8E7", fg="#2D6A4F").pack(side=tk.LEFT, padx=8)
+                 font=("Tahoma", 9), bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_exito"]).pack(side=tk.LEFT, padx=8)
 
         # Tabla
-        tf = tk.Frame(self.container, bg="#FFF8E7")
+        tf = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         tf.pack(fill=tk.BOTH, expand=True, padx=10, pady=6)
 
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=30,
+                        foreground=COLORES_MODULOS["texto_principal"], rowheight=30,
                         font=("Tahoma", 11))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                         font=("Tahoma", 11, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+                  foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
         # Tag para filas en alerta
         cols = ("codigo", "nombre", "categoria", "existencia", "reorden", "estado")
@@ -76,8 +85,8 @@ class InventarioExistencias:
             self.tree.heading(col, text=texto, anchor="center")
             self.tree.column(col, width=ancho, anchor="center")
 
-        self.tree.tag_configure("alerta", foreground="#A93226", background="#FFF0F0")
-        self.tree.tag_configure("normal", foreground="#2D6A4F")
+        self.tree.tag_configure("alerta", foreground=COLORES_MODULOS["tag_alerta_fg"], background=COLORES_MODULOS["tag_alerta_bg"])
+        self.tree.tag_configure("normal", foreground=COLORES_MODULOS["tag_normal_fg"])
 
         sb = ttk.Scrollbar(tf, command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
@@ -122,16 +131,16 @@ class InventarioMovimientos:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "📦  Inventario — Movimientos")
 
         # Filtros
-        filtros = tk.Frame(self.container, bg="#FFF8E7", padx=10, pady=8)
+        filtros = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"], padx=10, pady=8)
         filtros.pack(fill=tk.X)
 
         tk.Label(filtros, text="Artículo:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(side=tk.LEFT, padx=(0, 4))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(side=tk.LEFT, padx=(0, 4))
 
         self.cursor.execute("SELECT codigo, nombre FROM Articulo ORDER BY nombre")
         articulos = [("", "Todos")] + [(r[0], r[1]) for r in self.cursor.fetchall()]
@@ -144,7 +153,7 @@ class InventarioMovimientos:
 
         tk.Label(filtros, text="Tipo:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(side=tk.LEFT, padx=(12, 4))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(side=tk.LEFT, padx=(12, 4))
         self.var_tipo = tk.StringVar(value="Todos")
         cb_tipo = ttk.Combobox(filtros, textvariable=self.var_tipo,
                                values=["Todos", "entrada_compra",
@@ -157,20 +166,20 @@ class InventarioMovimientos:
                    command=self._cargar_tabla).pack(side=tk.LEFT, padx=12)
 
         # Tabla
-        tf = tk.Frame(self.container, bg="#FFF8E7")
+        tf = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         tf.pack(fill=tk.BOTH, expand=True, padx=10, pady=6)
 
         style = ttk.Style()
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=28,
+                        foreground=COLORES_MODULOS["texto_principal"], rowheight=28,
                         font=("Tahoma", 10))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                         font=("Tahoma", 10, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+                  foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
         cols = ("articulo", "tipo", "cantidad", "ant", "nueva", "referencia", "fecha", "usuario")
         self.tree = ttk.Treeview(tf, columns=cols,
@@ -188,8 +197,8 @@ class InventarioMovimientos:
             self.tree.heading(col, text=texto, anchor="center")
             self.tree.column(col, width=ancho, anchor="center")
 
-        self.tree.tag_configure("entrada", foreground="#2D6A4F")
-        self.tree.tag_configure("salida",  foreground="#A93226")
+        self.tree.tag_configure("entrada", foreground=COLORES_MODULOS["tag_entrada_fg"])
+        self.tree.tag_configure("salida",  foreground=COLORES_MODULOS["tag_salida_fg"])
 
         sb = ttk.Scrollbar(tf, command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
@@ -243,25 +252,26 @@ class InventarioMovimientos:
 #  AJUSTE MANUAL DE INVENTARIO
 # ══════════════════════════════════════════════════════════════════════════════
 class InventarioAjuste:
-    def __init__(self, container):
+    def __init__(self, container, usuario=""):
         self.container = container
         self.db        = conexion.conectar()
         self.cursor    = self.db.cursor()
+        self.usuario   = usuario or ""
         configurar_estilos(container)
         self._build()
 
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "📦  Inventario — Ajuste manual")
 
         tk.Label(self.container,
                  text="Solo el administrador puede corregir existencias manualmente.",
                  font=("Tahoma", 9, "italic"),
-                 bg="#FFF8E7", fg="#C47A2B").pack(anchor="w", padx=12, pady=2)
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(anchor="w", padx=12, pady=2)
 
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=1)
         cuerpo.columnconfigure(1, weight=2)
@@ -272,7 +282,7 @@ class InventarioAjuste:
 
     def _form(self, parent):
         card = tk.LabelFrame(parent, text="  Nuevo ajuste  ",
-                             bg="#FFF8E7", fg="#7B3F00",
+                             bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"],
                              font=("Tahoma", 10, "bold"),
                              bd=2, relief="groove")
         card.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=4)
@@ -280,7 +290,7 @@ class InventarioAjuste:
         # Artículo
         tk.Label(card, text="Artículo:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(14, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(14, 2))
 
         self.cursor.execute("SELECT codigo, nombre, existencia FROM Articulo ORDER BY nombre")
         self.articulos = self.cursor.fetchall()
@@ -297,13 +307,13 @@ class InventarioAjuste:
         # Existencia actual
         self.lbl_exist = tk.Label(card, text="Existencia actual: —",
                                   font=("Tahoma", 10, "italic"),
-                                  bg="#FFF8E7", fg="#C47A2B")
+                                  bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"])
         self.lbl_exist.pack(anchor="w", padx=16, pady=2)
 
         # Tipo de ajuste
         tk.Label(card, text="Tipo de ajuste:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_tipo = tk.StringVar(value="ajuste_manual")
         for texto, val in [("Ajuste manual (corrección)", "ajuste_manual"),
                            ("Merma (pérdida/desperdicio)", "merma")]:
@@ -313,7 +323,7 @@ class InventarioAjuste:
         # Nueva existencia
         tk.Label(card, text="Nueva existencia:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_nueva = tk.StringVar()
         ttk.Entry(card, textvariable=self.var_nueva,
                   font=("Tahoma", 11), width=14).pack(padx=16)
@@ -321,46 +331,44 @@ class InventarioAjuste:
         # Motivo
         tk.Label(card, text="Motivo:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_motivo = tk.StringVar()
         ttk.Entry(card, textvariable=self.var_motivo,
                   font=("Tahoma", 11), width=28).pack(padx=16)
 
         # Usuario que ajusta
-        tk.Label(card, text="Usuario (administrador):",
+        tk.Label(card, text="Usuario que ajusta:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
-        self.cursor.execute(
-            "SELECT nombre FROM Usuarios WHERE rol='administrador'")
-        admins = [r[0] for r in self.cursor.fetchall()]
-        self.var_usuario = tk.StringVar(value=admins[0] if admins else "")
-        ttk.Combobox(card, textvariable=self.var_usuario,
-                     values=admins, state="readonly",
-                     font=("Tahoma", 11), width=24).pack(padx=16)
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
+        self.lbl_usuario = tk.Label(card,
+                 text=self.usuario or "Sin usuario",
+                 font=("Tahoma", 10, "bold",),
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["TEXTO_OSCURO"])
+        self.lbl_usuario.pack(anchor="w", padx=16)
 
         ttk.Button(card, text="Aplicar ajuste",
                    style="Advertencia.TButton", width=20,
                    command=self._aplicar).pack(pady=16)
 
     def _tabla_recientes(self, parent):
-        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame = tk.Frame(parent, bg=COLORES_MODULOS["fondo_contenedor"])
         frame.grid(row=0, column=1, sticky="nsew", pady=4)
 
         tk.Label(frame, text="Ajustes recientes",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", pady=(4, 6))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", pady=(4, 6))
 
         style = ttk.Style()
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=28,
+                        foreground=COLORES_MODULOS["texto_principal"], rowheight=28,
                         font=("Tahoma", 10))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                         font=("Tahoma", 10, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+                  foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
         cols = ("articulo", "tipo", "ant", "nueva", "motivo", "fecha")
         self.tree = ttk.Treeview(frame, columns=cols,
@@ -428,9 +436,8 @@ class InventarioAjuste:
             messagebox.showwarning("Motivo vacío", "Escribe el motivo del ajuste.")
             return
 
-        usuario_nombre = self.var_usuario.get()
-        if not usuario_nombre:
-            messagebox.showwarning("Sin usuario", "Selecciona el usuario administrador.")
+        if not self.usuario:
+            messagebox.showwarning("Sin usuario", "No se pudo identificar el usuario activo.")
             return
 
         codigo, exist_ant = self.art_map[nombre]
@@ -438,7 +445,7 @@ class InventarioAjuste:
         ahora             = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         self.cursor.execute(
-            "SELECT id_usuario FROM Usuarios WHERE nombre = ?", (usuario_nombre,))
+            "SELECT id_usuario FROM Usuarios WHERE nombre = ?", (self.usuario,))
         row = self.cursor.fetchone()
         id_usuario = row[0] if row else None
 
@@ -501,14 +508,14 @@ class InventarioArticulos:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
 
         title_frame = _titulo(self.container, "📦  Inventario — Artículos")
         ttk.Button(title_frame, text="➕ Nuevo artículo",
                    style="Cafe.TButton",
                    command=self._nuevo).pack(side=tk.RIGHT, padx=6)
 
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=2)
         cuerpo.columnconfigure(1, weight=3)
@@ -522,7 +529,7 @@ class InventarioArticulos:
 
     def _build_form(self, parent):
         self.card = tk.LabelFrame(parent, text="  Nuevo artículo  ",
-                                  bg="#FFF8E7", fg="#7B3F00",
+                                  bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"],
                                   font=("Tahoma", 10, "bold"),
                                   bd=2, relief="groove")
         self.card.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=4)
@@ -530,7 +537,7 @@ class InventarioArticulos:
         def fila(label, widget_fn, **kw):
             tk.Label(self.card, text=label,
                      font=("Tahoma", 10, "bold"),
-                     bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
             return widget_fn(self.card, **kw)
 
         # Código
@@ -567,7 +574,7 @@ class InventarioArticulos:
         # Tipo
         tk.Label(self.card, text="Tipo:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_tipo = tk.StringVar(value="0")
         for texto, val in [("Producto de venta", "0"), ("Insumo interno", "1")]:
             ttk.Radiobutton(self.card, text=texto,
@@ -581,7 +588,7 @@ class InventarioArticulos:
 
         tk.Label(self.card, text="Categoría:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_cat = tk.StringVar()
         self.cb_cat  = ttk.Combobox(self.card, textvariable=self.var_cat,
                                     values=[n for _, n in self._cats],
@@ -596,7 +603,7 @@ class InventarioArticulos:
 
         tk.Label(self.card, text="Proveedor:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_prov = tk.StringVar(value="Sin proveedor")
         self.cb_prov  = ttk.Combobox(self.card, textvariable=self.var_prov,
                                      values=[n for _, n in self._provs],
@@ -604,7 +611,7 @@ class InventarioArticulos:
         self.cb_prov.pack(padx=16)
 
         # Botones
-        frame_btns = tk.Frame(self.card, bg="#FFF8E7")
+        frame_btns = tk.Frame(self.card, bg=COLORES_MODULOS["fondo_contenedor"])
         frame_btns.pack(pady=14)
         ttk.Button(frame_btns, text="💾 Guardar",
                    style="Dorado.TButton", width=14,
@@ -616,11 +623,11 @@ class InventarioArticulos:
     # ── Tabla ─────────────────────────────────────────────────────────────────
 
     def _build_tabla(self, parent):
-        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame = tk.Frame(parent, bg=COLORES_MODULOS["fondo_contenedor"])
         frame.grid(row=0, column=1, sticky="nsew", pady=4)
 
         # Botones de acción sobre la tabla
-        acc = tk.Frame(frame, bg="#FFF8E7")
+        acc = tk.Frame(frame, bg=COLORES_MODULOS["fondo_contenedor"])
         acc.pack(fill=tk.X, pady=(0, 6))
         ttk.Button(acc, text="✏️ Editar",
                    style="Cafe.TButton", width=12,
@@ -632,14 +639,14 @@ class InventarioArticulos:
         style = ttk.Style()
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=28,
+                        foreground=COLORES_MODULOS["texto_principal"], rowheight=28,
                         font=("Tahoma", 10))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                         font=("Tahoma", 10, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+                  foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
         cols = ("codigo", "nombre", "precio", "costo", "reorden", "tipo", "categoria", "proveedor")
         self.tree = ttk.Treeview(frame, columns=cols,
@@ -657,10 +664,10 @@ class InventarioArticulos:
             self.tree.heading(col, text=texto, anchor="center")
             self.tree.column(col, width=ancho, anchor="center")
 
-        self.tree.tag_configure("fijo",     background="#FFF8DC", foreground="#7B3F00")
-        self.tree.tag_configure("insumo",   foreground="#2D6A4F")
-        self.tree.tag_configure("venta",    foreground="#1A5276")
-        self.tree.tag_configure("inactivo", foreground="#AAAAAA")
+        self.tree.tag_configure("fijo",     background=COLORES_MODULOS['tag_fijo_bg'], foreground=COLORES_MODULOS["texto_principal"])
+        self.tree.tag_configure("insumo",   foreground=COLORES_MODULOS["tag_insumo_fg"])
+        self.tree.tag_configure("venta",    foreground=COLORES_MODULOS["tag_venta_fg"])
+        self.tree.tag_configure("inactivo", foreground=COLORES_MODULOS["tag_inactivo_fg"])
 
         sb = ttk.Scrollbar(frame, command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
@@ -703,7 +710,8 @@ class InventarioArticulos:
         self.var_nombre.set("")
         self.var_precio.set("")
         self.var_costo.set("")
-        self.var_reorden.set("")
+        reorden_default = _obtener_config(self.cursor, "punto_reorden_default", "10")
+        self.var_reorden.set(reorden_default)
         self.var_tipo.set("0")
         self.var_cat.set("")
         self.var_prov.set("Sin proveedor")
@@ -876,10 +884,10 @@ class InventarioCategorias:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "📦  Inventario — Categorías")
 
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=1)
         cuerpo.columnconfigure(1, weight=2)
@@ -891,20 +899,20 @@ class InventarioCategorias:
 
     def _build_form(self, parent):
         self.card = tk.LabelFrame(parent, text="  Nueva categoría  ",
-                                  bg="#FFF8E7", fg="#7B3F00",
+                                  bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"],
                                   font=("Tahoma", 10, "bold"),
                                   bd=2, relief="groove")
         self.card.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=4)
 
         tk.Label(self.card, text="Nombre de la categoría:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(20, 4))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(20, 4))
 
         self.var_nombre = tk.StringVar()
         ttk.Entry(self.card, textvariable=self.var_nombre,
                   font=("Tahoma", 12), width=26).pack(padx=16)
 
-        frame_btns = tk.Frame(self.card, bg="#FFF8E7")
+        frame_btns = tk.Frame(self.card, bg=COLORES_MODULOS["fondo_contenedor"])
         frame_btns.pack(pady=16)
         ttk.Button(frame_btns, text="💾 Guardar",
                    style="Dorado.TButton", width=14,
@@ -916,15 +924,15 @@ class InventarioCategorias:
         # Info de artículos en esta categoría
         self.lbl_info = tk.Label(self.card, text="",
                                  font=("Tahoma", 9, "italic"),
-                                 bg="#FFF8E7", fg="#C47A2B",
+                                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"],
                                  wraplength=220, justify="left")
         self.lbl_info.pack(padx=16, pady=4)
 
     def _build_tabla(self, parent):
-        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame = tk.Frame(parent, bg=COLORES_MODULOS["fondo_contenedor"])
         frame.grid(row=0, column=1, sticky="nsew", pady=4)
 
-        acc = tk.Frame(frame, bg="#FFF8E7")
+        acc = tk.Frame(frame, bg=COLORES_MODULOS["fondo_contenedor"])
         acc.pack(fill=tk.X, pady=(0, 6))
         ttk.Button(acc, text="✏️ Editar",
                    style="Cafe.TButton", width=12,
@@ -936,14 +944,14 @@ class InventarioCategorias:
         style = ttk.Style()
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=30,
+                        foreground=COLORES_MODULOS["texto_principal"], rowheight=30,
                         font=("Tahoma", 11))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                         font=("Tahoma", 11, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+                  foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
         cols = ("id", "nombre", "articulos")
         self.tree = ttk.Treeview(frame, columns=cols,
@@ -1076,9 +1084,9 @@ class InventarioCategorias:
         self._cancelar()
         self._cargar_tabla()
         
-        
+
 # ══════════════════════════════════════════════════════════════════════════════
-#  PRODUCCIÓN DIARIA
+#  PRODUCCIÓN DIARIA  —  reemplaza la clase InventarioProduccion en inventario.py
 # ══════════════════════════════════════════════════════════════════════════════
 class InventarioProduccion:
     def __init__(self, container, usuario=""):
@@ -1086,23 +1094,47 @@ class InventarioProduccion:
         self.usuario   = usuario
         self.db        = conexion.conectar()
         self.cursor    = self.db.cursor()
+        self._modo     = tk.StringVar(value="kg")   # 'kg' o 'bultos'
         configurar_estilos(container)
+        self._cargar_config()
         self._build()
+
+    # ── Cargar configuración y existencias desde BD ───────────────────────────
+
+    def _cargar_config(self):
+        self.cursor.execute(
+            "SELECT clave, valor FROM Configuracion WHERE clave IN "
+            "('kg_por_bulto_harina','tortilla_por_bulto')"
+        )
+        cfg = dict(self.cursor.fetchall())
+        self.kg_por_bulto       = float(cfg.get('kg_por_bulto_harina', 20))
+        self.tortilla_por_bulto = float(cfg.get('tortilla_por_bulto',  40))
+
+        self.cursor.execute(
+            "SELECT existencia FROM Articulo WHERE codigo='TORTILLA001'")
+        row = self.cursor.fetchone()
+        self.exist_tortilla = row[0] if row else 0.0
+
+        self.cursor.execute(
+            "SELECT existencia FROM Articulo WHERE codigo='HARINA001'")
+        row = self.cursor.fetchone()
+        self.exist_harina = row[0] if row else 0.0
 
     # ── Construcción ──────────────────────────────────────────────────────────
 
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg="#FFFDE7")
         _titulo(self.container, "📦  Inventario — Producción diaria")
 
         tk.Label(self.container,
-                 text="Registra aquí los kilogramos producidos en el turno.",
+                 text="Registra la producción del turno. "
+                      "El sistema descuenta la harina automáticamente.",
                  font=("Tahoma", 9, "italic"),
-                 bg="#FFF8E7", fg="#C47A2B").pack(anchor="w", padx=14, pady=2)
+                 bg="#FFFDE7", fg="#F57F17").pack(anchor="w", padx=14, pady=2)
 
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg="#FFFDE7")
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=1)
         cuerpo.columnconfigure(1, weight=2)
@@ -1116,50 +1148,84 @@ class InventarioProduccion:
 
     def _build_form(self, parent):
         card = tk.LabelFrame(parent, text="  Nuevo registro de producción  ",
-                             bg="#FFF8E7", fg="#7B3F00",
+                             bg="#FFFDE7", fg="#1B5E20",
                              font=("Tahoma", 10, "bold"),
                              bd=2, relief="groove")
         card.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=4)
 
-        # Artículo — solo productos de venta (es_insumo = 0)
-        tk.Label(card, text="Artículo producido:",
-                 font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(16, 2))
+        # ── Stock actual ──────────────────────────────────────────────────────
+        stock_frame = tk.Frame(card, bg="#E8F5E9", padx=10, pady=8)
+        stock_frame.pack(fill=tk.X, padx=12, pady=(12, 6))
 
-        self.cursor.execute("""
-            SELECT codigo, nombre, existencia
-            FROM Articulo
-            WHERE es_insumo = 0
-            ORDER BY nombre
-        """)
-        self._arts = self.cursor.fetchall()
-        self._art_map = {r[1]: (r[0], r[2]) for r in self._arts}
-        nombres = [r[1] for r in self._arts]
+        tk.Label(stock_frame, text="Stock actual",
+                 font=("Tahoma", 9, "bold"),
+                 bg="#E8F5E9", fg="#1B5E20").grid(row=0, column=0,
+                                                   columnspan=2, sticky="w")
+        tk.Label(stock_frame, text="🫓 Tortilla:",
+                 font=("Tahoma", 10),
+                 bg="#E8F5E9", fg="#1B5E20").grid(row=1, column=0,
+                                                   sticky="w", pady=2)
+        self.lbl_stock_tortilla = tk.Label(stock_frame,
+                 text=f"{self.exist_tortilla:.3f} kg",
+                 font=("Tahoma", 10, "bold"),
+                 bg="#E8F5E9", fg="#2E7D32")
+        self.lbl_stock_tortilla.grid(row=1, column=1, sticky="e", padx=8)
 
-        self.var_art = tk.StringVar(value="Tortilla" if "Tortilla" in nombres else "")
-        self.cb_art  = ttk.Combobox(card, textvariable=self.var_art,
-                                    values=nombres, state="readonly",
-                                    font=("Tahoma", 11), width=24)
-        self.cb_art.pack(padx=16)
-        self.cb_art.bind("<<ComboboxSelected>>", self._actualizar_existencia)
+        tk.Label(stock_frame, text="🌾 Harina:",
+                 font=("Tahoma", 10),
+                 bg="#E8F5E9", fg="#1B5E20").grid(row=2, column=0,
+                                                   sticky="w", pady=2)
+        self.lbl_stock_harina = tk.Label(stock_frame,
+                 text=f"{self.exist_harina:.3f} bultos",
+                 font=("Tahoma", 10, "bold"),
+                 bg="#E8F5E9", fg="#2E7D32")
+        self.lbl_stock_harina.grid(row=2, column=1, sticky="e", padx=8)
 
-        # Existencia actual
-        self.lbl_exist = tk.Label(card, text="",
-                                  font=("Tahoma", 10, "italic"),
-                                  bg="#FFF8E7", fg="#C47A2B")
-        self.lbl_exist.pack(anchor="w", padx=16, pady=2)
-        self._actualizar_existencia()   # mostrar desde el inicio
+        tk.Label(stock_frame,
+                 text=f"Relación: 1 bulto ({self.kg_por_bulto:.0f} kg harina)"
+                      f" → {self.tortilla_por_bulto:.0f} kg tortilla",
+                 font=("Tahoma", 8, "italic"),
+                 bg="#E8F5E9", fg="#F57F17").grid(row=3, column=0,
+                                                   columnspan=2, sticky="w",
+                                                   pady=(4, 0))
 
-        # Cantidad producida
-        tk.Label(card, text="Cantidad producida (kg):",
-                 font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(14, 2))
+        # ── Selector de modo ──────────────────────────────────────────────────
+        tk.Label(card, text="¿Cómo quieres registrar?",
+                 font=("Tahoma", 10, "bold"),
+                 bg="#FFFDE7", fg="#1B5E20").pack(anchor="w",
+                                                  padx=16, pady=(10, 2))
+        modos = tk.Frame(card, bg="#FFFDE7")
+        modos.pack(anchor="w", padx=20)
+        ttk.Radiobutton(modos,
+                        text="Capturar kg de tortilla producidos",
+                        variable=self._modo, value="kg",
+                        command=self._actualizar_modo).pack(anchor="w", pady=2)
+        ttk.Radiobutton(modos,
+                        text="Capturar bultos de harina usados",
+                        variable=self._modo, value="bultos",
+                        command=self._actualizar_modo).pack(anchor="w", pady=2)
 
-        self.var_cantidad = tk.StringVar()
-        ttk.Entry(card, textvariable=self.var_cantidad,
-                  font=("Tahoma", 13), width=14).pack(padx=16)
+        # ── Contenedor de campos de captura (cambia según modo) ───────────────
+        self.frame_campos = tk.Frame(card, bg="#FFFDE7")
+        self.frame_campos.pack(fill=tk.X, padx=12, pady=(8, 0))
 
-        # Turno activo
+        # Variables de captura
+        self.var_kg_tortilla = tk.StringVar()
+        self.var_bultos      = tk.StringVar()
+        self.var_kg_extra    = tk.StringVar()
+
+        self.var_kg_tortilla.trace_add("write", self._calcular)
+        self.var_bultos.trace_add("write",      self._calcular)
+        self.var_kg_extra.trace_add("write",    self._calcular)
+
+        # Se dejó el panel de solo lectura desactivado para ahorrar espacio.
+        self.lbl_res_tortilla = None
+        self.lbl_res_harina   = None
+        self.lbl_alerta       = None
+
+        self._build_campos_kg()     # vista inicial: modo kg
+
+        # ── Turno activo ──────────────────────────────────────────────────────
         self.cursor.execute("""
             SELECT t.id_turno, t.fecha_apertura, u.nombre
             FROM Turno t
@@ -1169,75 +1235,236 @@ class InventarioProduccion:
         turno = self.cursor.fetchone()
 
         tk.Label(card, text="Turno activo:",
-                 font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(14, 2))
-
+                 font=("Tahoma", 10, "bold"),
+                 bg="#FFFDE7", fg="#1B5E20").pack(anchor="w",
+                                                  padx=16, pady=(4, 2))
         if turno:
             self._id_turno = turno[0]
             tk.Label(card,
-                     text=f"#{turno[0]}  —  Abierto por {turno[2]}\n{turno[1]}",
-                     font=("Tahoma", 10),
-                     bg="#FFF8E7", fg="#2D6A4F").pack(anchor="w", padx=16)
+                     text=f"#{turno[0]}  —  {turno[2]}\n{turno[1]}",
+                     font=("Tahoma", 9),
+                     bg="#FFFDE7", fg="#2E7D32").pack(anchor="w", padx=20)
         else:
             self._id_turno = None
-            tk.Label(card,
-                     text="⚠  No hay turno abierto.",
-                     font=("Tahoma", 10),
-                     bg="#FFF8E7", fg="#A93226").pack(anchor="w", padx=16)
+            tk.Label(card, text="⚠  No hay turno abierto.",
+                     font=("Tahoma", 9),
+                     bg="#FFFDE7", fg="#C62828").pack(anchor="w", padx=20)
 
-        # Notas opcionales
+        # ── Notas ─────────────────────────────────────────────────────────────
         tk.Label(card, text="Notas (opcional):",
-                 font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(14, 2))
+                 font=("Tahoma", 10, "bold"),
+                 bg="#FFFDE7", fg="#1B5E20").pack(anchor="w",
+                                                  padx=16, pady=(10, 2))
         self.var_notas = tk.StringVar()
         ttk.Entry(card, textvariable=self.var_notas,
                   font=("Tahoma", 11), width=28).pack(padx=16)
 
-        # Botón registrar
         ttk.Button(card, text="✅  Registrar producción",
-                   style="Dorado.TButton", width=24,
-                   command=self._registrar).pack(pady=20)
+                   style="Exito.TButton", width=24,
+                   command=self._registrar).pack(pady=16)
 
-    # ── Tabla de producción del día ───────────────────────────────────────────
+    # ── Campos según modo ─────────────────────────────────────────────────────
+
+    def _build_campos_kg(self):
+        """Modo A: el trabajador captura kg de tortilla producidos."""
+        for w in self.frame_campos.winfo_children():
+            w.destroy()
+
+        tk.Label(self.frame_campos, text="Kg de tortilla producidos:",
+                 font=("Tahoma", 11, "bold"),
+                 bg="#FFFDE7", fg="#1B5E20").pack(anchor="w", pady=(0, 2))
+        ttk.Entry(self.frame_campos, textvariable=self.var_kg_tortilla,
+                  font=("Tahoma", 14), width=14).pack(anchor="w")
+
+    def _build_campos_bultos(self):
+        """Modo B: el trabajador captura bultos + kg extra de harina."""
+        for w in self.frame_campos.winfo_children():
+            w.destroy()
+
+        tk.Label(self.frame_campos, text="Bultos de harina usados:",
+                 font=("Tahoma", 11, "bold"),
+                 bg="#FFFDE7", fg="#1B5E20").pack(anchor="w", pady=(0, 2))
+
+        fila_bultos = tk.Frame(self.frame_campos, bg="#FFFDE7")
+        fila_bultos.pack(anchor="w")
+        ttk.Entry(fila_bultos, textvariable=self.var_bultos,
+                  font=("Tahoma", 14), width=8).pack(side=tk.LEFT)
+        tk.Label(fila_bultos, text="bultos",
+                 font=("Tahoma", 11),
+                 bg="#FFFDE7", fg="#1B5E20").pack(side=tk.LEFT, padx=6)
+
+        tk.Label(self.frame_campos,
+                 text="Más kg extra (del siguiente bulto):",
+                 font=("Tahoma", 10, "bold"),
+                 bg="#FFFDE7", fg="#1B5E20").pack(anchor="w", pady=(10, 2))
+
+        fila_extra = tk.Frame(self.frame_campos, bg="#FFFDE7")
+        fila_extra.pack(anchor="w")
+        ttk.Entry(fila_extra, textvariable=self.var_kg_extra,
+                  font=("Tahoma", 14), width=8).pack(side=tk.LEFT)
+        tk.Label(fila_extra, text="kg  (0 si no hay extra)",
+                 font=("Tahoma", 10, "italic"),
+                 bg="#FFFDE7", fg="#F57F17").pack(side=tk.LEFT, padx=6)
+
+        # Ejemplo visual
+        tk.Label(self.frame_campos,
+                 text=f"Ej: 2 bultos + 5 kg → "
+                      f"2 + (5 ÷ {self.kg_por_bulto:.0f}) = 2.25 bultos",
+                 font=("Tahoma", 8, "italic"),
+                 bg="#FFFDE7", fg="#757575").pack(anchor="w", pady=(4, 0))
+
+    # ── Lógica ────────────────────────────────────────────────────────────────
+
+    def _actualizar_modo(self):
+        """Reconstruye los campos de captura según el modo seleccionado."""
+        self.var_kg_tortilla.set("")
+        self.var_bultos.set("")
+        self.var_kg_extra.set("")
+
+        if self.lbl_res_tortilla is not None:
+            self.lbl_res_tortilla.config(text="🫓  — kg tortilla")
+        if self.lbl_res_harina is not None:
+            self.lbl_res_harina.config(text="🌾  — bultos harina a descontar")
+        if self.lbl_alerta is not None:
+            self.lbl_alerta.config(text="")
+
+        if self._modo.get() == "kg":
+            self._build_campos_kg()
+        else:
+            self._build_campos_bultos()
+
+    def _calcular(self, *args):
+        """Calcula automáticamente el complemento según el modo."""
+        try:
+            if self._modo.get() == "kg":
+                # Modo A: captura kg tortilla → calcula bultos harina
+                kg_tortilla = float(self.var_kg_tortilla.get().replace(",", "."))
+                if kg_tortilla <= 0:
+                    raise ValueError
+                bultos_harina = kg_tortilla / self.tortilla_por_bulto
+
+            else:
+                # Modo B: captura bultos + kg extra → calcula kg tortilla
+                bultos   = float(self.var_bultos.get().replace(",", ".") or "0")
+                kg_extra = float(self.var_kg_extra.get().replace(",", ".") or "0")
+
+                if bultos < 0 or kg_extra < 0:
+                    raise ValueError
+                if bultos == 0 and kg_extra == 0:
+                    raise ValueError
+
+                # Conversión: kg extra → fracción de bulto
+                fraccion      = kg_extra / self.kg_por_bulto
+                bultos_harina = bultos + fraccion
+                kg_tortilla   = bultos_harina * self.tortilla_por_bulto
+
+        except (ValueError, ZeroDivisionError):
+            if self.lbl_res_tortilla is not None:
+                self.lbl_res_tortilla.config(text="🫓  — kg tortilla")
+            if self.lbl_res_harina is not None:
+                self.lbl_res_harina.config(text="🌾  — bultos harina a descontar")
+            if self.lbl_alerta is not None:
+                self.lbl_alerta.config(text="")
+            return
+
+        if self.lbl_res_tortilla is not None:
+            self.lbl_res_tortilla.config(
+                text=f"🫓  +{kg_tortilla:.3f} kg tortilla")
+        if self.lbl_res_harina is not None:
+            self.lbl_res_harina.config(
+                text=f"🌾  -{bultos_harina:.3f} bultos harina"
+                     + (f"  ({bultos_harina * self.kg_por_bulto:.2f} kg)"
+                        if self._modo.get() == "bultos" else ""))
+
+        # Guardar valores calculados para usarlos en _registrar
+        self._kg_tortilla_calc   = kg_tortilla
+        self._bultos_harina_calc = bultos_harina
+
+        # Alerta de stock
+        if self.lbl_alerta is not None:
+            if bultos_harina > self.exist_harina:
+                self.lbl_alerta.config(
+                    text=f"⚠ Solo hay {self.exist_harina:.3f} bultos disponibles.")
+            else:
+                self.lbl_alerta.config(text="")
+
+    def _cargar_tabla(self):
+        from datetime import date
+        for iid in self.tree.get_children():
+            self.tree.delete(iid)
+
+        hoy = date.today().isoformat()
+        self.cursor.execute("""
+            SELECT m.cantidad, m.existencia_anterior, m.existencia_nueva,
+                   m.referencia, m.fecha, u.nombre
+            FROM MovimientoInventario m
+            JOIN Usuarios u ON u.id_usuario = m.id_usuario
+            WHERE m.tipo   = 'entrada_produccion'
+              AND m.codigo = 'TORTILLA001'
+              AND DATE(m.fecha) = ?
+            ORDER BY m.fecha DESC
+        """, (hoy,))
+        rows = self.cursor.fetchall()
+
+        total_kg     = sum(r[0] for r in rows)
+        total_bultos = total_kg / self.tortilla_por_bulto if self.tortilla_por_bulto else 0
+        self.lbl_total.config(
+            text=f"Total: {total_kg:.3f} kg  |  ~{total_bultos:.2f} bultos"
+            if rows else "Sin registros hoy")
+
+        for cant, ant, nueva, ref, fecha, usr in rows:
+            hora          = fecha[11:19] if len(fecha) > 10 else "—"
+            bultos_usados = cant / self.tortilla_por_bulto if self.tortilla_por_bulto else 0
+            self.tree.insert('', tk.END, values=(
+                f"+{cant:.3f} kg",
+                f"{ant:.3f}",
+                f"{nueva:.3f}",
+                f"{bultos_usados:.3f} bultos",
+                ref or "—",
+                hora,
+                usr,
+            ))
+
+    # ── Tabla ─────────────────────────────────────────────────────────────────
 
     def _build_tabla(self, parent):
-        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame = tk.Frame(parent, bg="#FFFDE7")
         frame.grid(row=0, column=1, sticky="nsew", pady=4)
 
-        # Encabezado con total del día
-        enc = tk.Frame(frame, bg="#FFF8E7")
+        enc = tk.Frame(frame, bg="#FFFDE7")
         enc.pack(fill=tk.X, pady=(0, 4))
         tk.Label(enc, text="Producción de hoy",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(side=tk.LEFT)
+                 bg="#FFFDE7", fg="#1B5E20").pack(side=tk.LEFT)
         self.lbl_total = tk.Label(enc, text="",
                                   font=("Tahoma", 11, "bold"),
-                                  bg="#FFF8E7", fg="#2D6A4F")
+                                  bg="#FFFDE7", fg="#2E7D32")
         self.lbl_total.pack(side=tk.RIGHT, padx=8)
 
         style = ttk.Style()
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=28,
+                        foreground="#1B5E20", rowheight=28,
                         font=("Tahoma", 10))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background="#2E7D32", foreground="#F9A825",
                         font=("Tahoma", 10, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
+                  background=[("selected", "#4CAF50")],
                   foreground=[("selected", "#FFFFFF")])
 
-        cols = ("articulo", "cantidad", "ant", "nueva", "notas", "hora", "usuario")
+        cols = ("cantidad", "ant", "nueva",
+                "harina_usada", "notas", "hora", "usuario")
         self.tree = ttk.Treeview(frame, columns=cols,
                                  show="headings", style="Carmelita.Treeview")
         for col, texto, ancho in [
-            ("articulo", "Artículo",    160),
-            ("cantidad", "Producido",    90),
-            ("ant",      "Stock ant.",   90),
-            ("nueva",    "Stock nuevo",  90),
-            ("notas",    "Notas",       160),
-            ("hora",     "Hora",         80),
-            ("usuario",  "Registró",    110),
+            ("cantidad",     "Kg producidos",  110),
+            ("ant",          "Stock ant.",       90),
+            ("nueva",        "Stock nuevo",      90),
+            ("harina_usada", "Harina usada",    120),
+            ("notas",        "Notas",           150),
+            ("hora",         "Hora",             75),
+            ("usuario",      "Registró",        110),
         ]:
             self.tree.heading(col, text=texto, anchor="center")
             self.tree.column(col, width=ancho, anchor="center")
@@ -1247,124 +1474,125 @@ class InventarioProduccion:
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         sb.pack(side=tk.LEFT, fill=tk.Y)
 
-    # ── Lógica ────────────────────────────────────────────────────────────────
-
-    def _actualizar_existencia(self, event=None):
-        nombre = self.var_art.get()
-        if nombre and nombre in self._art_map:
-            _, exist = self._art_map[nombre]
-            self.lbl_exist.config(text=f"Existencia actual: {exist:.3f} kg")
-        else:
-            self.lbl_exist.config(text="")
-
-    def _cargar_tabla(self):
-        from datetime import date
-        for iid in self.tree.get_children():
-            self.tree.delete(iid)
-
-        hoy = date.today().isoformat()
-        self.cursor.execute("""
-            SELECT a.nombre, m.cantidad, m.existencia_anterior,
-                   m.existencia_nueva, m.referencia, m.fecha, u.nombre
-            FROM MovimientoInventario m
-            JOIN Articulo a  ON a.codigo     = m.codigo
-            JOIN Usuarios u  ON u.id_usuario = m.id_usuario
-            WHERE m.tipo = 'entrada_produccion'
-              AND DATE(m.fecha) = ?
-            ORDER BY m.fecha DESC
-        """, (hoy,))
-        rows = self.cursor.fetchall()
-
-        total_hoy = sum(r[1] for r in rows)
-        self.lbl_total.config(
-            text=f"Total hoy: {total_hoy:.3f} kg" if rows else "Sin registros hoy")
-
-        for nombre, cant, ant, nueva, ref, fecha, usr in rows:
-            hora = fecha[11:19] if len(fecha) > 10 else "—"
-            self.tree.insert('', tk.END, values=(
-                nombre,
-                f"+{cant:.3f} kg",
-                f"{ant:.3f}",
-                f"{nueva:.3f}",
-                ref or "—",
-                hora,
-                usr,
-            ))
+    # ── Registrar ─────────────────────────────────────────────────────────────
 
     def _registrar(self):
-        nombre = self.var_art.get()
-        if not nombre or nombre not in self._art_map:
-            messagebox.showwarning("Sin artículo",
-                                   "Selecciona el artículo producido.")
+        # Verificar que el cálculo esté hecho
+        kg_tortilla   = getattr(self, '_kg_tortilla_calc',   None)
+        bultos_harina = getattr(self, '_bultos_harina_calc', None)
+
+        if not kg_tortilla or not bultos_harina or kg_tortilla <= 0:
+            messagebox.showwarning("Sin datos",
+                                   "Ingresa los valores de producción primero.")
             return
 
-        try:
-            cantidad = float(self.var_cantidad.get().replace(",", "."))
-            if cantidad <= 0:
-                raise ValueError
-        except ValueError:
-            messagebox.showwarning("Cantidad inválida",
-                                   "Ingresa una cantidad mayor a 0.")
-            return
+        # Advertir si no hay harina suficiente pero permitir continuar
+        if bultos_harina > self.exist_harina:
+            if not messagebox.askyesno(
+                "Stock insuficiente",
+                f"Se necesitan {bultos_harina:.3f} bultos de harina\n"
+                f"pero solo hay {self.exist_harina:.3f} disponibles.\n\n"
+                "¿Registrar de todas formas?\n"
+                "(El stock de harina quedará negativo)"
+            ):
+                return
 
-        codigo, exist_ant = self._art_map[nombre]
-        exist_nueva       = exist_ant + cantidad
-        notas             = self.var_notas.get().strip() or None
-
-        # Obtener id del usuario activo
+        # Id del usuario activo
         self.cursor.execute(
             "SELECT id_usuario FROM Usuarios WHERE nombre=?", (self.usuario,))
         row = self.cursor.fetchone()
         if not row:
             messagebox.showerror("Error",
-                                 "No se encontró el usuario activo en la base de datos.")
+                                 "No se encontró el usuario activo en la BD.")
             return
         id_usuario = row[0]
 
         from datetime import datetime
         ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        notas = self.var_notas.get().strip()
+        ref   = f"Producción {ahora[:10]}" + (f" — {notas}" if notas else "")
 
-        confirmar = messagebox.askyesno(
+        # Detalle legible para la confirmación según modo
+        if self._modo.get() == "bultos":
+            try:
+                bultos   = float(self.var_bultos.get() or "0")
+                kg_extra = float(self.var_kg_extra.get() or "0")
+                detalle  = (f"Bultos: {bultos:.0f}  +  {kg_extra:.1f} kg extra\n"
+                            f"Total harina: {bultos_harina:.3f} bultos\n")
+            except ValueError:
+                detalle = ""
+        else:
+            detalle = ""
+
+        if not messagebox.askyesno(
             "Confirmar producción",
-            f"Artículo:          {nombre}\n"
-            f"Existencia actual: {exist_ant:.3f} kg\n"
-            f"Producción:        +{cantidad:.3f} kg\n"
-            f"Nueva existencia:  {exist_nueva:.3f} kg\n\n"
+            f"{detalle}"
+            f"Tortilla a registrar:  +{kg_tortilla:.3f} kg\n"
+            f"Harina a descontar:    -{bultos_harina:.3f} bultos\n\n"
+            f"Stock tortilla:  {self.exist_tortilla:.3f} → "
+            f"{self.exist_tortilla + kg_tortilla:.3f} kg\n"
+            f"Stock harina:    {self.exist_harina:.3f} → "
+            f"{self.exist_harina - bultos_harina:.3f} bultos\n\n"
             "¿Registrar?"
-        )
-        if not confirmar:
+        ):
             return
 
         try:
-            # Actualizar existencia
-            self.cursor.execute(
-                "UPDATE Articulo SET existencia=? WHERE codigo=?",
-                (exist_nueva, codigo))
+            nueva_tortilla = self.exist_tortilla + kg_tortilla
+            nueva_harina   = self.exist_harina   - bultos_harina
 
-            # Registrar movimiento
+            # Tortilla → entrada_produccion
+            self.cursor.execute(
+                "UPDATE Articulo SET existencia=? WHERE codigo='TORTILLA001'",
+                (nueva_tortilla,))
             self.cursor.execute("""
                 INSERT INTO MovimientoInventario
                     (codigo, tipo, cantidad, existencia_anterior,
                      existencia_nueva, referencia, fecha, id_usuario)
-                VALUES (?, 'entrada_produccion', ?, ?, ?, ?, ?, ?)
-            """, (codigo, cantidad, exist_ant, exist_nueva, notas, ahora, id_usuario))
+                VALUES ('TORTILLA001','entrada_produccion',?,?,?,?,?,?)
+            """, (kg_tortilla, self.exist_tortilla,
+                  nueva_tortilla, ref, ahora, id_usuario))
+
+            # Harina → salida_produccion (negativo)
+            self.cursor.execute(
+                "UPDATE Articulo SET existencia=? WHERE codigo='HARINA001'",
+                (nueva_harina,))
+            self.cursor.execute("""
+                INSERT INTO MovimientoInventario
+                    (codigo, tipo, cantidad, existencia_anterior,
+                     existencia_nueva, referencia, fecha, id_usuario)
+                VALUES ('HARINA001','salida_produccion',?,?,?,?,?,?)
+            """, (-bultos_harina, self.exist_harina,
+                  nueva_harina, ref, ahora, id_usuario))
 
             self.db.commit()
 
             messagebox.showinfo("Producción registrada",
-                                f"✅ Se agregaron {cantidad:.3f} kg de {nombre}.\n"
-                                f"Nueva existencia: {exist_nueva:.3f} kg")
+                                f"✅ +{kg_tortilla:.3f} kg de tortilla\n"
+                                f"🌾  -{bultos_harina:.3f} bultos de harina descontados")
 
-            # Resetear formulario
-            self.var_cantidad.set("")
+            # Actualizar estado local
+            self.exist_tortilla = nueva_tortilla
+            self.exist_harina   = nueva_harina
+            self.lbl_stock_tortilla.config(text=f"{nueva_tortilla:.3f} kg")
+            self.lbl_stock_harina.config(text=f"{nueva_harina:.3f} bultos")
+
+            # Limpiar valores calculados y form
+            self._kg_tortilla_calc   = None
+            self._bultos_harina_calc = None
+            self.var_kg_tortilla.set("")
+            self.var_bultos.set("")
+            self.var_kg_extra.set("")
             self.var_notas.set("")
-
-            # Actualizar mapa local con nueva existencia
-            self._art_map[nombre] = (codigo, exist_nueva)
-            self._actualizar_existencia()
+            if self.lbl_res_tortilla is not None:
+                self.lbl_res_tortilla.config(text="🫓  — kg tortilla")
+            if self.lbl_res_harina is not None:
+                self.lbl_res_harina.config(text="🌾  — bultos harina a descontar")
+            if self.lbl_alerta is not None:
+                self.lbl_alerta.config(text="")
             self._cargar_tabla()
 
         except Exception as e:
             self.db.rollback()
             messagebox.showerror("Error",
-                                 f"No se pudo registrar la producción.\n\nDetalle: {e}")
+                                 f"No se pudo registrar.\n\nDetalle: {e}")

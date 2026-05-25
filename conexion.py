@@ -1,13 +1,24 @@
 import sqlite3
 import os
+import sys
 
-# La base de datos se guarda en la misma carpeta del proyecto
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "tortilleria_carmelita.db")
+
+def obtener_base_dir():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.argv[0]))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def obtener_db_path():
+    return os.path.join(obtener_base_dir(), "tortilleria_carmelita.db")
+
+
+DB_PATH = obtener_db_path()
+
 
 def conectar():
     try:
-        conexion = sqlite3.connect(DB_PATH)
+        conexion = sqlite3.connect(obtener_db_path())
         conexion.execute("PRAGMA foreign_keys = ON")
         print("Conexión exitosa a SQLite")
         return conexion

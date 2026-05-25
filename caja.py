@@ -2,21 +2,30 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 import conexion
-from botones import configurar_estilos
+from botones import configurar_estilos, COLORES_MODULOS
 
 # ── Helper compartido ─────────────────────────────────────────────────────────
 
 def _titulo(container, texto):
-    f = tk.Frame(container, bg="#C47A2B", padx=10, pady=6)
+    f = tk.Frame(container, bg=COLORES_MODULOS['encabezado_bg'], padx=10, pady=6)
     f.pack(fill=tk.X)
     tk.Label(f, text=texto, font=("Tahoma", 14, "bold"),
-             fg="#FFF8E7", bg="#C47A2B").pack(side=tk.LEFT)
+             fg=COLORES_MODULOS['encabezado_fg_claro'], bg=COLORES_MODULOS['encabezado_bg']).pack(side=tk.LEFT)
     return f
 
 def _turno_activo(cursor):
     cursor.execute("SELECT id_turno FROM Turno WHERE estado='abierto' LIMIT 1")
     row = cursor.fetchone()
     return row[0] if row else None
+
+def _obtener_config(cursor, clave, default=None):
+    """Obtiene un valor de configuración desde la BD."""
+    try:
+        cursor.execute("SELECT valor FROM Configuracion WHERE clave = ?", (clave,))
+        row = cursor.fetchone()
+        return row[0] if row else default
+    except:
+        return default
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -40,7 +49,7 @@ class CajaAbrir:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS['fondo_contenedor'])
         _titulo(self.container, "💰  Caja — Abrir turno")
 
         id_turno = _turno_activo(self.cursor)
@@ -56,41 +65,42 @@ class CajaAbrir:
             row = self.cursor.fetchone()
             fecha, fondo, quien = row
 
-            card = tk.Frame(self.container, bg="#FFFFFF", bd=1, relief="groove")
+            card = tk.Frame(self.container, bg=COLORES_MODULOS['fondo_card'], bd=1, relief="groove")
             card.pack(padx=40, pady=30, ipadx=20, ipady=20)
 
             tk.Label(card, text="✅  Turno activo",
                      font=("Tahoma", 16, "bold"),
-                     bg="#FFFFFF", fg="#2D6A4F").pack(pady=(10, 4))
+                     bg=COLORES_MODULOS['fondo_card'], fg=COLORES_MODULOS['texto_exito']).pack(pady=(10, 4))
             tk.Label(card, text=f"Apertura: {fecha}",
-                     font=("Tahoma", 11), bg="#FFFFFF", fg="#7B3F00").pack()
+                     font=("Tahoma", 11), bg=COLORES_MODULOS['fondo_card'], fg=COLORES_MODULOS['texto_principal']).pack()
             tk.Label(card, text=f"Fondo inicial: ${fondo:.2f}",
-                     font=("Tahoma", 11), bg="#FFFFFF", fg="#7B3F00").pack()
+                     font=("Tahoma", 11), bg=COLORES_MODULOS['fondo_card'], fg=COLORES_MODULOS['texto_principal']).pack()
             tk.Label(card, text=f"Abrió: {quien}",
-                     font=("Tahoma", 11), bg="#FFFFFF", fg="#7B3F00").pack(pady=(0, 10))
+                     font=("Tahoma", 11), bg=COLORES_MODULOS['fondo_card'], fg=COLORES_MODULOS['texto_principal']).pack(pady=(0, 10))
         else:
             # No hay turno → formulario para abrir
-            card = tk.Frame(self.container, bg="#FFFFFF", bd=1, relief="groove")
+            card = tk.Frame(self.container, bg=COLORES_MODULOS['fondo_card'], bd=1, relief="groove")
             card.pack(padx=40, pady=30, ipadx=20, ipady=20)
 
             tk.Label(card, text="Abrir nuevo turno",
                      font=("Tahoma", 15, "bold"),
-                     bg="#FFFFFF", fg="#7B3F00").pack(pady=(10, 16))
+                     bg=COLORES_MODULOS['fondo_card'], fg=COLORES_MODULOS['texto_principal']).pack(pady=(10, 16))
 
-            fila = tk.Frame(card, bg="#FFFFFF")
+            fila = tk.Frame(card, bg=COLORES_MODULOS['fondo_card'])
             fila.pack()
 
             tk.Label(fila, text="Fondo inicial ($):",
                      font=("Tahoma", 12, "bold"),
-                     bg="#FFFFFF", fg="#7B3F00").grid(row=0, column=0,
+                     bg=COLORES_MODULOS['fondo_card'], fg=COLORES_MODULOS['texto_principal']).grid(row=0, column=0,
                                                       sticky="e", padx=8, pady=6)
-            self.var_fondo = tk.StringVar(value="200.00")
+            fondo_default = _obtener_config(self.cursor, "fondo_apertura_default", "200.00")
+            self.var_fondo = tk.StringVar(value=fondo_default)
             ttk.Entry(fila, textvariable=self.var_fondo,
                       font=("Tahoma", 12), width=14).grid(row=0, column=1, padx=8)
 
             tk.Label(fila, text="Notas (opcional):",
                      font=("Tahoma", 12, "bold"),
-                     bg="#FFFFFF", fg="#7B3F00").grid(row=1, column=0,
+                     bg=COLORES_MODULOS['fondo_card'], fg=COLORES_MODULOS['texto_principal']).grid(row=1, column=0,
                                                       sticky="e", padx=8, pady=6)
             self.var_notas = tk.StringVar()
             ttk.Entry(fila, textvariable=self.var_notas,
@@ -143,7 +153,7 @@ class CajaCorte:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS['fondo_contenedor'])
         _titulo(self.container, "💰  Caja — Corte de caja")
 
         id_turno = _turno_activo(self.cursor)
@@ -151,7 +161,7 @@ class CajaCorte:
         if not id_turno:
             tk.Label(self.container,
                      text="⚠️  No hay turno abierto.\nAbre un turno desde 'Abrir turno'.",
-                     font=("Tahoma", 13), bg="#FFF8E7", fg="#A93226").pack(pady=40)
+                     font=("Tahoma", 13), bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_error']).pack(pady=40)
             return
 
         # Calcular totales del turno
@@ -187,34 +197,34 @@ class CajaCorte:
         self.fondo             = fondo
 
         # Tarjeta resumen
-        card = tk.Frame(self.container, bg="#FFFFFF", bd=1, relief="groove")
+        card = tk.Frame(self.container, bg=COLORES_MODULOS['fondo_card'], bd=1, relief="groove")
         card.pack(padx=30, pady=16, fill=tk.X)
 
-        def fila_resumen(texto, valor, color="#7B3F00"):
-            f = tk.Frame(card, bg="#FFFFFF")
+        def fila_resumen(texto, valor, color=COLORES_MODULOS['texto_principal']):
+            f = tk.Frame(card, bg=COLORES_MODULOS['fondo_card'])
             f.pack(fill=tk.X, padx=20, pady=3)
             tk.Label(f, text=texto, font=("Tahoma", 11),
-                     bg="#FFFFFF", fg="#7B3F00", anchor="w").pack(side=tk.LEFT)
+                     bg=COLORES_MODULOS['fondo_card'], fg=COLORES_MODULOS['texto_principal'], anchor="w").pack(side=tk.LEFT)
             tk.Label(f, text=f"${valor:.2f}", font=("Tahoma", 11, "bold"),
-                     bg="#FFFFFF", fg=color, anchor="e").pack(side=tk.RIGHT)
+                     bg=COLORES_MODULOS['fondo_card'], fg=color, anchor="e").pack(side=tk.RIGHT)
 
         tk.Label(card, text="Resumen del turno",
                  font=("Tahoma", 13, "bold"),
-                 bg="#FFFFFF", fg="#7B3F00").pack(pady=(12, 8))
+                 bg=COLORES_MODULOS['fondo_card'], fg=COLORES_MODULOS['texto_principal']).pack(pady=(12, 8))
 
         fila_resumen("Fondo inicial:",        fondo)
-        fila_resumen("Total ventas:",         total_ventas,   "#2D6A4F")
-        fila_resumen("Entradas extra:",       total_entradas, "#2D6A4F")
-        fila_resumen("Salidas / gastos:",     total_salidas,  "#A93226")
+        fila_resumen("Total ventas:",         total_ventas,   COLORES_MODULOS['texto_exito'])
+        fila_resumen("Entradas extra:",       total_entradas, COLORES_MODULOS['texto_exito'])
+        fila_resumen("Salidas / gastos:",     total_salidas,  COLORES_MODULOS['texto_error'])
         ttk.Separator(card, orient="horizontal").pack(fill=tk.X, padx=20, pady=6)
-        fila_resumen("Efectivo esperado:",    efectivo_esperado, "#C47A2B")
+        fila_resumen("Efectivo esperado:",    efectivo_esperado, COLORES_MODULOS['encabezado_bg'])
 
         # Campo efectivo contado
-        inp = tk.Frame(self.container, bg="#FFF8E7")
+        inp = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         inp.pack(pady=10)
         tk.Label(inp, text="Efectivo contado ($):",
                  font=("Tahoma", 12, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").grid(row=0, column=0,
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).grid(row=0, column=0,
                                                    sticky="e", padx=8)
         self.var_contado = tk.StringVar()
         self.var_contado.trace_add("write", lambda *a: self._actualizar_diferencia())
@@ -223,7 +233,7 @@ class CajaCorte:
 
         self.lbl_diferencia = tk.Label(self.container, text="Diferencia: —",
                                        font=("Tahoma", 13, "bold"),
-                                       bg="#FFF8E7", fg="#7B3F00")
+                                       bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"])
         self.lbl_diferencia.pack(pady=4)
 
         ttk.Button(self.container, text="Cerrar turno y guardar corte",
@@ -234,12 +244,12 @@ class CajaCorte:
         try:
             contado    = float(self.var_contado.get().replace(",", "."))
             diferencia = contado - self.efectivo_esperado
-            color      = "#2D6A4F" if diferencia >= 0 else "#A93226"
+            color      = COLORES_MODULOS['texto_exito'] if diferencia >= 0 else COLORES_MODULOS['texto_error']
             signo      = "+" if diferencia >= 0 else ""
             self.lbl_diferencia.config(
                 text=f"Diferencia: {signo}${diferencia:.2f}", fg=color)
         except ValueError:
-            self.lbl_diferencia.config(text="Diferencia: —", fg="#7B3F00")
+            self.lbl_diferencia.config(text="Diferencia: —", fg=COLORES_MODULOS["texto_principal"])
 
     def _cerrar(self):
         try:
@@ -306,7 +316,7 @@ class CajaMovimientos:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "💰  Caja — Movimientos")
 
         id_turno = _turno_activo(self.cursor)
@@ -314,12 +324,12 @@ class CajaMovimientos:
         if not id_turno:
             tk.Label(self.container,
                      text="⚠️  No hay turno abierto.\nAbre un turno para registrar movimientos.",
-                     font=("Tahoma", 13), bg="#FFF8E7", fg="#A93226").pack(pady=40)
+                     font=("Tahoma", 13), bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(pady=40)
             return
 
         self.id_turno = id_turno
 
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=2)
         cuerpo.columnconfigure(1, weight=3)
@@ -330,15 +340,15 @@ class CajaMovimientos:
 
     def _form(self, parent):
         card = tk.LabelFrame(parent, text="  Nuevo movimiento  ",
-                             bg="#FFF8E7", fg="#7B3F00",
+                             bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"],
                              font=("Tahoma", 10, "bold"),
                              bd=2, relief="groove")
         card.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=4)
 
         tk.Label(card, text="Tipo:", font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(14, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(14, 2))
         self.var_tipo = tk.StringVar(value="salida")
-        fr = tk.Frame(card, bg="#FFF8E7")
+        fr = tk.Frame(card, bg=COLORES_MODULOS["fondo_contenedor"])
         fr.pack(anchor="w", padx=16)
         for texto, val in [("💸 Salida (gasto)", "salida"),
                            ("💵 Entrada (extra)", "entrada")]:
@@ -346,13 +356,13 @@ class CajaMovimientos:
                             value=val).pack(anchor="w", pady=2)
 
         tk.Label(card, text="Concepto:", font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_concepto = tk.StringVar()
         ttk.Entry(card, textvariable=self.var_concepto,
                   font=("Tahoma", 11), width=24).pack(padx=16)
 
         tk.Label(card, text="Monto ($):", font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_monto = tk.StringVar()
         ttk.Entry(card, textvariable=self.var_monto,
                   font=("Tahoma", 11), width=14).pack(padx=16)
@@ -362,24 +372,24 @@ class CajaMovimientos:
                    command=self._registrar).pack(pady=16)
 
     def _tabla(self, parent):
-        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame = tk.Frame(parent, bg=COLORES_MODULOS["fondo_contenedor"])
         frame.grid(row=0, column=1, sticky="nsew", pady=4)
 
         tk.Label(frame, text="Movimientos del turno",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", pady=(4, 6))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", pady=(4, 6))
 
         style = ttk.Style()
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=28,
+                        foreground=COLORES_MODULOS["texto_principal"], rowheight=28,
                         font=("Tahoma", 10))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                         font=("Tahoma", 10, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+                  foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
         cols = ("tipo", "concepto", "monto", "fecha")
         self.tree = ttk.Treeview(frame, columns=cols,

@@ -2,15 +2,15 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 import conexion
-from botones import configurar_estilos
+from botones import configurar_estilos, COLORES_MODULOS
 
 # ── Helper compartido ─────────────────────────────────────────────────────────
 
 def _titulo(container, texto):
-    f = tk.Frame(container, bg="#C47A2B", padx=10, pady=6)
+    f = tk.Frame(container, bg=COLORES_MODULOS['encabezado_bg'], padx=10, pady=6)
     f.pack(fill=tk.X)
     tk.Label(f, text=texto, font=("Tahoma", 14, "bold"),
-             fg="#FFF8E7", bg="#C47A2B").pack(side=tk.LEFT)
+             fg=COLORES_MODULOS['encabezado_fg_claro'], bg=COLORES_MODULOS['encabezado_bg']).pack(side=tk.LEFT)
     return f
 
 
@@ -36,10 +36,10 @@ class ComprasNueva:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "🚚  Compras — Nueva compra")
 
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=1)
         cuerpo.columnconfigure(1, weight=2)
@@ -52,7 +52,7 @@ class ComprasNueva:
 
     def _form_encabezado(self, parent):
         card = tk.LabelFrame(parent, text="  Datos de la compra  ",
-                             bg="#FFF8E7", fg="#7B3F00",
+                             bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"],
                              font=("Tahoma", 10, "bold"),
                              bd=2, relief="groove")
         card.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=4)
@@ -60,7 +60,7 @@ class ComprasNueva:
         # Proveedor
         tk.Label(card, text="Proveedor:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(14, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(14, 2))
         self.cursor.execute("SELECT id_proveedor, nombre FROM Proveedor ORDER BY nombre")
         provs = self.cursor.fetchall()
         self.prov_map = {r[1]: r[0] for r in provs}
@@ -75,7 +75,7 @@ class ComprasNueva:
         # Tipo de documento
         tk.Label(card, text="Tipo de documento:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_tipodoc = tk.StringVar(value="Remisión")
         ttk.Combobox(card, textvariable=self.var_tipodoc,
                      values=["Factura", "Remisión", "Ticket", "Nota"],
@@ -84,7 +84,7 @@ class ComprasNueva:
         # Número de documento
         tk.Label(card, text="Núm. documento:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_numdoc = tk.StringVar()
         ttk.Entry(card, textvariable=self.var_numdoc,
                   font=("Tahoma", 11), width=20).pack(padx=16)
@@ -94,7 +94,7 @@ class ComprasNueva:
         # Agregar artículo a la compra
         tk.Label(card, text="— Agregar artículo —",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#C47A2B").pack()
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack()
 
         self.cursor.execute(
             "SELECT codigo, nombre FROM Articulo WHERE es_insumo = 1 ORDER BY nombre")
@@ -103,25 +103,25 @@ class ComprasNueva:
 
         tk.Label(card, text="Artículo (insumo):",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
         self.var_art = tk.StringVar()
         ttk.Combobox(card, textvariable=self.var_art,
                      values=list(self.ins_map.keys()),
                      state="readonly", font=("Tahoma", 11), width=26).pack(padx=16)
 
-        fila = tk.Frame(card, bg="#FFF8E7")
+        fila = tk.Frame(card, bg=COLORES_MODULOS["fondo_contenedor"])
         fila.pack(padx=16, pady=6, fill=tk.X)
 
         tk.Label(fila, text="Cantidad:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").grid(row=0, column=0, sticky="e", padx=4)
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).grid(row=0, column=0, sticky="e", padx=4)
         self.var_cant = tk.StringVar()
         ttk.Entry(fila, textvariable=self.var_cant,
                   font=("Tahoma", 10), width=8).grid(row=0, column=1, padx=4)
 
         tk.Label(fila, text="Costo unit.($):",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").grid(row=0, column=2, sticky="e", padx=4)
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).grid(row=0, column=2, sticky="e", padx=4)
         self.var_costo = tk.StringVar()
         ttk.Entry(fila, textvariable=self.var_costo,
                   font=("Tahoma", 10), width=8).grid(row=0, column=3, padx=4)
@@ -135,7 +135,7 @@ class ComprasNueva:
         # Total y guardar
         self.lbl_total = tk.Label(card, text="Total: $0.00",
                                   font=("Tahoma", 14, "bold"),
-                                  bg="#FFF8E7", fg="#7B3F00")
+                                  bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"])
         self.lbl_total.pack(pady=4)
 
         ttk.Button(card, text="✔ Guardar compra",
@@ -145,25 +145,25 @@ class ComprasNueva:
     # ── Panel derecho: tabla de artículos de la compra ────────────────────────
 
     def _panel_articulos(self, parent):
-        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame = tk.Frame(parent, bg=COLORES_MODULOS["fondo_contenedor"])
         frame.grid(row=0, column=1, sticky="nsew", pady=4)
 
         tk.Label(frame, text="Detalle de la compra",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", pady=(4, 6))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", pady=(4, 6))
 
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=30,
+                        foreground=COLORES_MODULOS["texto_principal"], rowheight=30,
                         font=("Tahoma", 11))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                         font=("Tahoma", 11, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+                  foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
         cols = ("articulo", "cantidad", "costo", "subtotal")
         self.tree = ttk.Treeview(frame, columns=cols,
@@ -327,16 +327,16 @@ class ComprasHistorial:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "🚚  Compras — Historial")
 
         # Filtros
-        filtros = tk.Frame(self.container, bg="#FFF8E7", padx=10, pady=8)
+        filtros = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"], padx=10, pady=8)
         filtros.pack(fill=tk.X)
 
         tk.Label(filtros, text="Proveedor:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(side=tk.LEFT, padx=(0, 4))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(side=tk.LEFT, padx=(0, 4))
         self.cursor.execute("SELECT nombre FROM Proveedor ORDER BY nombre")
         provs = ["Todos"] + [r[0] for r in self.cursor.fetchall()]
         self.var_prov = tk.StringVar(value="Todos")
@@ -346,42 +346,42 @@ class ComprasHistorial:
 
         tk.Label(filtros, text="Desde:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(side=tk.LEFT, padx=(12, 4))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(side=tk.LEFT, padx=(12, 4))
         self.var_desde = tk.StringVar()
         ttk.Entry(filtros, textvariable=self.var_desde,
                   width=12, font=("Tahoma", 10)).pack(side=tk.LEFT, padx=4)
         tk.Label(filtros, text="(AAAA-MM-DD)",
-                 font=("Tahoma", 8), bg="#FFF8E7", fg="#C47A2B").pack(side=tk.LEFT)
+                 font=("Tahoma", 8), bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(side=tk.LEFT)
 
         tk.Label(filtros, text="Hasta:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(side=tk.LEFT, padx=(8, 4))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(side=tk.LEFT, padx=(8, 4))
         self.var_hasta = tk.StringVar()
         ttk.Entry(filtros, textvariable=self.var_hasta,
                   width=12, font=("Tahoma", 10)).pack(side=tk.LEFT, padx=4)
         tk.Label(filtros, text="(AAAA-MM-DD)",
-                 font=("Tahoma", 8), bg="#FFF8E7", fg="#C47A2B").pack(side=tk.LEFT)
+                 font=("Tahoma", 8), bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(side=tk.LEFT)
 
         ttk.Button(filtros, text="Buscar",
                    style="Dorado.TButton",
                    command=self._cargar).pack(side=tk.LEFT, padx=12)
 
         # Tabla compras
-        tf = tk.Frame(self.container, bg="#FFF8E7")
+        tf = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         tf.pack(fill=tk.BOTH, expand=True, padx=10, pady=4)
 
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=28,
+                        foreground=COLORES_MODULOS["texto_principal"], rowheight=28,
                         font=("Tahoma", 10))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                         font=("Tahoma", 10, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+                  foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
         cols = ("id", "proveedor", "tipodoc", "numdoc", "fecha", "total", "usuario")
         self.tree = ttk.Treeview(tf, columns=cols,
@@ -409,9 +409,9 @@ class ComprasHistorial:
         # Tabla detalle
         tk.Label(self.container, text="Detalle de la compra seleccionada:",
                  font=("Tahoma", 10, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=12, pady=(6, 2))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=12, pady=(6, 2))
 
-        df = tk.Frame(self.container, bg="#FFF8E7")
+        df = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         df.pack(fill=tk.X, padx=10, pady=4)
 
         cols2 = ("articulo", "cantidad", "costo", "subtotal")
@@ -495,10 +495,10 @@ class ComprasProveedores:
     def _build(self):
         for w in self.container.winfo_children():
             w.destroy()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS["fondo_contenedor"])
         _titulo(self.container, "🚚  Compras — Proveedores")
 
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg=COLORES_MODULOS["fondo_contenedor"])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=1)
         cuerpo.columnconfigure(1, weight=2)
@@ -509,7 +509,7 @@ class ComprasProveedores:
 
     def _form(self, parent):
         self.card = tk.LabelFrame(parent, text="  Nuevo proveedor  ",
-                                  bg="#FFF8E7", fg="#7B3F00",
+                                  bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"],
                                   font=("Tahoma", 10, "bold"),
                                   bd=2, relief="groove")
         self.card.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=4)
@@ -523,16 +523,16 @@ class ComprasProveedores:
             lbl = texto + (" *" if requerido else "")
             tk.Label(self.card, text=lbl,
                      font=("Tahoma", 11, "bold"),
-                     bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", padx=16, pady=(10, 2))
+                     bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", padx=16, pady=(10, 2))
             var = tk.StringVar()
             setattr(self, var_name, var)
             ttk.Entry(self.card, textvariable=var,
                       font=("Tahoma", 11), width=26).pack(padx=16)
 
         tk.Label(self.card, text="* Campo obligatorio",
-                 font=("Tahoma", 8), bg="#FFF8E7", fg="#C47A2B").pack(anchor="w", padx=16)
+                 font=("Tahoma", 8), bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(anchor="w", padx=16)
 
-        btn_row = tk.Frame(self.card, bg="#FFF8E7")
+        btn_row = tk.Frame(self.card, bg=COLORES_MODULOS["fondo_contenedor"])
         btn_row.pack(pady=14)
         ttk.Button(btn_row, text="Guardar",
                    style="Exito.TButton", width=12,
@@ -546,32 +546,32 @@ class ComprasProveedores:
         # Edición del proveedor seleccionado
         tk.Label(self.card, text="Selecciona un proveedor de la tabla\npara editar o ver sus datos.",
                  font=("Tahoma", 9, "italic"),
-                 bg="#FFF8E7", fg="#C47A2B").pack(padx=16, pady=4)
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_error"]).pack(padx=16, pady=4)
 
         ttk.Button(self.card, text="✏ Actualizar seleccionado",
                    style="Dorado.TButton", width=24,
                    command=self._actualizar).pack(pady=4)
 
     def _tabla(self, parent):
-        frame = tk.Frame(parent, bg="#FFF8E7")
+        frame = tk.Frame(parent, bg=COLORES_MODULOS["fondo_contenedor"])
         frame.grid(row=0, column=1, sticky="nsew", pady=4)
 
         tk.Label(frame, text="Proveedores registrados",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(anchor="w", pady=(4, 6))
+                 bg=COLORES_MODULOS["fondo_contenedor"], fg=COLORES_MODULOS["texto_principal"]).pack(anchor="w", pady=(4, 6))
 
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("Carmelita.Treeview",
                         background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=28,
+                        foreground=COLORES_MODULOS["texto_principal"], rowheight=28,
                         font=("Tahoma", 11))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS["tree_heading_bg"], foreground=COLORES_MODULOS["tree_heading_fg"],
                         font=("Tahoma", 11, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS["tree_selected_bg"])],
+                  foreground=[("selected", COLORES_MODULOS["tree_selected_fg"])])
 
         cols = ("id", "nombre", "telefono", "representante")
         self.tree = ttk.Treeview(frame, columns=cols,

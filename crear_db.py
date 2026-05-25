@@ -1,8 +1,7 @@
 import sqlite3
-import os
+from conexion import obtener_db_path
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH  = os.path.join(BASE_DIR, "tortilleria_carmelita.db")
+DB_PATH = obtener_db_path()
 
 
 def crear_base_de_datos():
@@ -16,13 +15,11 @@ def crear_base_de_datos():
         --  TABLAS BASE
         -- ══════════════════════════════════════════════════════════════
 
-        -- Categorías de productos
         CREATE TABLE IF NOT EXISTS Categoria (
             id_categoria INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre       TEXT NOT NULL
         );
 
-        -- Proveedores de insumos
         CREATE TABLE IF NOT EXISTS Proveedor (
             id_proveedor  INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre        TEXT NOT NULL,
@@ -30,34 +27,27 @@ def crear_base_de_datos():
             representante TEXT
         );
 
-        -- Usuarios del sistema
         CREATE TABLE IF NOT EXISTS Usuarios (
             id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre     TEXT NOT NULL,
             rol        TEXT NOT NULL CHECK(rol IN ('administrador', 'trabajador')),
             telefono   TEXT,
             contrasena TEXT NOT NULL,
-            activo     INTEGER NOT NULL DEFAULT 1   -- 0 = usuario dado de baja
+            activo     INTEGER NOT NULL DEFAULT 1
         );
 
         -- ══════════════════════════════════════════════════════════════
-        --  CONFIGURACIÓN DEL SISTEMA (clave-valor)
+        --  CONFIGURACIÓN DEL SISTEMA
         -- ══════════════════════════════════════════════════════════════
-        -- Ejemplos de claves:
-        --   nombre_negocio, direccion, telefono_negocio, rfc
-        --   precio_tortilla, unidad_venta, punto_reorden_default
-        --   fondo_apertura_default, impresora_ticket, copias_ticket
         CREATE TABLE IF NOT EXISTS Configuracion (
             clave       TEXT PRIMARY KEY,
             valor       TEXT NOT NULL,
-            descripcion TEXT             -- para mostrar en pantalla de configuración
+            descripcion TEXT
         );
 
         -- ══════════════════════════════════════════════════════════════
         --  CATÁLOGO DE ARTÍCULOS
         -- ══════════════════════════════════════════════════════════════
-        -- La tortilla tiene código fijo TORTILLA001.
-        -- Los insumos de proveedores también se registran aquí.
         CREATE TABLE IF NOT EXISTS Articulo (
             codigo       TEXT PRIMARY KEY,
             nombre       TEXT NOT NULL,
@@ -65,7 +55,7 @@ def crear_base_de_datos():
             costo        REAL NOT NULL DEFAULT 0,
             existencia   REAL NOT NULL DEFAULT 0,
             reorden      REAL NOT NULL DEFAULT 0,
-            es_insumo    INTEGER NOT NULL DEFAULT 0,  -- 0=producto venta, 1=insumo interno
+            es_insumo    INTEGER NOT NULL DEFAULT 0,
             id_categoria INTEGER NOT NULL,
             id_proveedor INTEGER,
             FOREIGN KEY (id_categoria) REFERENCES Categoria(id_categoria),
@@ -73,40 +63,55 @@ def crear_base_de_datos():
         );
 
         -- ══════════════════════════════════════════════════════════════
+        --  RECETA DE PRODUCCIÓN
+        -- ══════════════════════════════════════════════════════════════
+        -- Define cuánto insumo se consume para producir cierta cantidad
+        -- de producto. La relación es configurable desde Configuracion.
+        -- Ejemplo base: 1 bulto harina → 40 kg tortilla
+        CREATE TABLE IF NOT EXISTS RecetaProduccion (
+            id_receta         INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo_producto   TEXT NOT NULL,
+            codigo_insumo     TEXT NOT NULL,
+            cantidad_insumo   REAL NOT NULL,
+            cantidad_producto REAL NOT NULL,
+            unidad_insumo     TEXT NOT NULL DEFAULT 'bulto',
+            activa            INTEGER NOT NULL DEFAULT 1,
+            FOREIGN KEY (codigo_producto) REFERENCES Articulo(codigo),
+            FOREIGN KEY (codigo_insumo)   REFERENCES Articulo(codigo)
+        );
+
+        -- ══════════════════════════════════════════════════════════════
         --  TURNOS / CORTE DE CAJA
         -- ══════════════════════════════════════════════════════════════
-        -- Un turno representa una sesión de trabajo (apertura → corte).
-        -- Solo puede haber UN turno con estado 'abierto' a la vez.
         CREATE TABLE IF NOT EXISTS Turno (
-            id_turno          INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha_apertura    TEXT NOT NULL,          -- DATETIME: '2025-05-17 08:00:00'
-            fecha_cierre      TEXT,                   -- NULL mientras está abierto
-            fondo_inicial     REAL NOT NULL DEFAULT 0,-- dinero con que abre la caja
-            total_ventas      REAL,                   -- calculado al cerrar
-            total_movimientos REAL,                   -- entradas - salidas de caja manual
-            efectivo_esperado REAL,                   -- fondo + ventas + entradas - salidas
-            efectivo_contado  REAL,                   -- lo que el cajero cuenta físicamente
-            diferencia        REAL,                   -- contado - esperado (puede ser negativo)
-            estado            TEXT NOT NULL DEFAULT 'abierto'
-                                  CHECK(estado IN ('abierto', 'cerrado')),
+            id_turno            INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha_apertura      TEXT NOT NULL,
+            fecha_cierre        TEXT,
+            fondo_inicial       REAL NOT NULL DEFAULT 0,
+            total_ventas        REAL,
+            total_movimientos   REAL,
+            efectivo_esperado   REAL,
+            efectivo_contado    REAL,
+            diferencia          REAL,
+            estado              TEXT NOT NULL DEFAULT 'abierto'
+                                    CHECK(estado IN ('abierto', 'cerrado')),
             id_usuario_apertura INTEGER NOT NULL,
             id_usuario_cierre   INTEGER,
-            notas               TEXT,                 -- observaciones del corte
+            notas               TEXT,
             FOREIGN KEY (id_usuario_apertura) REFERENCES Usuarios(id_usuario),
             FOREIGN KEY (id_usuario_cierre)   REFERENCES Usuarios(id_usuario)
         );
 
         -- ══════════════════════════════════════════════════════════════
-        --  MOVIMIENTOS DE CAJA  (gastos / entradas extra durante el turno)
+        --  MOVIMIENTOS DE CAJA
         -- ══════════════════════════════════════════════════════════════
-        -- Ejemplos: compra de bolsas, pago de gas, préstamo a empleado.
         CREATE TABLE IF NOT EXISTS MovimientoCaja (
             id_movimiento INTEGER PRIMARY KEY AUTOINCREMENT,
             id_turno      INTEGER NOT NULL,
             tipo          TEXT NOT NULL CHECK(tipo IN ('entrada', 'salida')),
             concepto      TEXT NOT NULL,
             monto         REAL NOT NULL,
-            fecha         TEXT NOT NULL,              -- DATETIME
+            fecha         TEXT NOT NULL,
             id_usuario    INTEGER NOT NULL,
             FOREIGN KEY (id_turno)   REFERENCES Turno(id_turno),
             FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario)
@@ -116,24 +121,23 @@ def crear_base_de_datos():
         --  VENTAS
         -- ══════════════════════════════════════════════════════════════
         CREATE TABLE IF NOT EXISTS Venta (
-            id_venta      INTEGER PRIMARY KEY AUTOINCREMENT,
-            folio         TEXT NOT NULL UNIQUE,       -- 'TRT-00001'
-            fecha         TEXT NOT NULL,              -- DATETIME completo
-            importe       REAL NOT NULL,
-            monto_recibido REAL NOT NULL DEFAULT 0,   -- lo que entregó el cliente
-            cambio        REAL NOT NULL DEFAULT 0,    -- importe - monto_recibido
-            estado        TEXT NOT NULL DEFAULT 'completada'
-                              CHECK(estado IN ('completada', 'cancelada')),
-            motivo_cancel TEXT,                       -- razón si fue cancelada
-            id_turno      INTEGER NOT NULL,
-            id_usuario    INTEGER NOT NULL,
-            id_cancela    INTEGER,                    -- usuario que canceló
+            id_venta       INTEGER PRIMARY KEY AUTOINCREMENT,
+            folio          TEXT NOT NULL UNIQUE,
+            fecha          TEXT NOT NULL,
+            importe        REAL NOT NULL,
+            monto_recibido REAL NOT NULL DEFAULT 0,
+            cambio         REAL NOT NULL DEFAULT 0,
+            estado         TEXT NOT NULL DEFAULT 'completada'
+                               CHECK(estado IN ('completada', 'cancelada')),
+            motivo_cancel  TEXT,
+            id_turno       INTEGER NOT NULL,
+            id_usuario     INTEGER NOT NULL,
+            id_cancela     INTEGER,
             FOREIGN KEY (id_turno)   REFERENCES Turno(id_turno),
             FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario),
             FOREIGN KEY (id_cancela) REFERENCES Usuarios(id_usuario)
         );
 
-        -- Detalle de cada venta (cantidad en kg para tortilla)
         CREATE TABLE IF NOT EXISTS DetalleVenta (
             id_venta INTEGER,
             codigo   TEXT NOT NULL,
@@ -145,13 +149,13 @@ def crear_base_de_datos():
         );
 
         -- ══════════════════════════════════════════════════════════════
-        --  COMPRAS A PROVEEDORES
+        --  COMPRAS
         -- ══════════════════════════════════════════════════════════════
         CREATE TABLE IF NOT EXISTS Compra (
             id_compra    INTEGER PRIMARY KEY AUTOINCREMENT,
             numdoc       TEXT NOT NULL,
-            tipodoc      TEXT NOT NULL,               -- 'factura', 'remision', 'ticket'
-            fecha        TEXT NOT NULL,               -- DATETIME completo
+            tipodoc      TEXT NOT NULL,
+            fecha        TEXT NOT NULL,
             importe      REAL NOT NULL,
             id_proveedor INTEGER NOT NULL,
             id_usuario   INTEGER NOT NULL,
@@ -159,7 +163,6 @@ def crear_base_de_datos():
             FOREIGN KEY (id_usuario)   REFERENCES Usuarios(id_usuario)
         );
 
-        -- Detalle de cada compra
         CREATE TABLE IF NOT EXISTS DetalleCompra (
             id_compra INTEGER,
             codigo    TEXT NOT NULL,
@@ -171,30 +174,25 @@ def crear_base_de_datos():
         );
 
         -- ══════════════════════════════════════════════════════════════
-        --  MOVIMIENTOS DE INVENTARIO  (auditoría de stock)
+        --  MOVIMIENTOS DE INVENTARIO
         -- ══════════════════════════════════════════════════════════════
-        -- Cada vez que la existencia de un artículo cambia, se registra aquí.
-        -- Tipos:
-        --   entrada_compra  → originado por una Compra
-        --   salida_venta    → originado por una Venta
-        --   ajuste_manual   → el admin corrige el stock manualmente
-        --   merma           → desperdicio o pérdida registrada
         CREATE TABLE IF NOT EXISTS MovimientoInventario (
-            id_movimiento INTEGER PRIMARY KEY AUTOINCREMENT,
-            codigo        TEXT NOT NULL,
-            tipo          TEXT NOT NULL CHECK(tipo IN (
-                              'entrada_compra',
-                              'salida_venta',
-                              'entrada_produccion',   -- ← nueva para registrar la tortilla que se produce internamente
-                              'ajuste_manual',
-                              'merma'
-                          )),
-            cantidad      REAL NOT NULL,              -- positivo=entrada, negativo=salida
-            existencia_anterior REAL NOT NULL,        -- stock antes del movimiento
-            existencia_nueva    REAL NOT NULL,        -- stock después del movimiento
-            referencia    TEXT,                       -- id_compra, id_venta, o descripción
-            fecha         TEXT NOT NULL,              -- DATETIME
-            id_usuario    INTEGER NOT NULL,
+            id_movimiento       INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo              TEXT NOT NULL,
+            tipo                TEXT NOT NULL CHECK(tipo IN (
+                                    'entrada_compra',
+                                    'entrada_produccion',
+                                    'salida_produccion',
+                                    'salida_venta',
+                                    'ajuste_manual',
+                                    'merma'
+                                )),
+            cantidad            REAL NOT NULL,
+            existencia_anterior REAL NOT NULL,
+            existencia_nueva    REAL NOT NULL,
+            referencia          TEXT,
+            fecha               TEXT NOT NULL,
+            id_usuario          INTEGER NOT NULL,
             FOREIGN KEY (codigo)     REFERENCES Articulo(codigo),
             FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario)
         );
@@ -202,7 +200,6 @@ def crear_base_de_datos():
 
     # ── Datos iniciales ───────────────────────────────────────────────────────
 
-    # Categorías
     cursor.executemany(
         "INSERT OR IGNORE INTO Categoria (id_categoria, nombre) VALUES (?,?)", [
         (1, 'Tortillas y Derivados'),
@@ -210,43 +207,56 @@ def crear_base_de_datos():
         (3, 'Otros'),
     ])
 
-    # Proveedores
     cursor.executemany(
         "INSERT OR IGNORE INTO Proveedor (id_proveedor, nombre, telefono, representante) VALUES (?,?,?,?)", [
-        (1, 'Proveedor General', '9610000000', 'Contacto General'),
+        (1, 'Proveedor Maseca', '9610000000', 'Contacto General'),
     ])
 
-    # Usuarios
     cursor.executemany(
         "INSERT OR IGNORE INTO Usuarios (id_usuario, nombre, rol, telefono, contrasena) VALUES (?,?,?,?,?)", [
-        (1, 'Administrador',      'administrador', '9161579322', '07'),
-        (2, 'Trabajador General', 'trabajador',    '0000000000', '1234'),
+        (1, 'Administrador','administrador', '9614426162', 'kaleb')
     ])
 
-    # Artículo fijo: Tortilla
+    # Tortilla — producto de venta (kg)
     cursor.execute("""
         INSERT OR IGNORE INTO Articulo
-            (codigo, nombre, precio, costo, existencia, reorden, es_insumo, id_categoria, id_proveedor)
-        VALUES
-            ('TORTILLA001', 'Tortilla', 18.0, 0.0, 0.0, 0.0, 0, 1, NULL)
+            (codigo, nombre, precio, costo, existencia, reorden,
+             es_insumo, id_categoria, id_proveedor)
+        VALUES ('TORTILLA001', 'Tortilla', 23.0, 0.0, 0.0, 0.0, 0, 1, NULL)
     """)
 
-    # Configuración inicial del sistema
+    # Harina Maseca — insumo, existencia en bultos
+    cursor.execute("""
+        INSERT OR IGNORE INTO Articulo
+            (codigo, nombre, precio, costo, existencia, reorden,
+             es_insumo, id_categoria, id_proveedor)
+        VALUES ('HARINA001', 'Harina Maseca (bulto 20 kg)', 0.0, 0.0, 0.0, 2.0, 1, 2, 1)
+    """)
+
+    # Receta base: 1 bulto harina → 40 kg tortilla
+    cursor.execute("""
+        INSERT OR IGNORE INTO RecetaProduccion
+            (id_receta, codigo_producto, codigo_insumo,
+             cantidad_insumo, cantidad_producto, unidad_insumo, activa)
+        VALUES (1, 'TORTILLA001', 'HARINA001', 1.0, 40.0, 'bulto', 1)
+    """)
+
+    # Configuración inicial
     configuraciones = [
-        # Del negocio
-        ('nombre_negocio',        'Tortillería Carmelita',  'Nombre del negocio (aparece en tickets)'),
-        ('direccion',             '',                        'Dirección del local'),
-        ('telefono_negocio',      '',                        'Teléfono del negocio'),
-        ('rfc',                   '',                        'RFC (opcional, para facturas)'),
-        # De operación
-        ('precio_tortilla',       '18.0',                   'Precio por kg de tortilla'),
-        ('unidad_venta',          'kg',                      'Unidad de medida para venta de tortilla'),
-        ('punto_reorden_default', '10.0',                   'Stock mínimo por defecto antes de alertar'),
-        # De caja
-        ('fondo_apertura_default','200.0',                  'Fondo con que abre la caja normalmente'),
-        # De impresión
-        ('impresora_ticket',      '',                        'Nombre o puerto de la impresora de tickets'),
-        ('copias_ticket',         '1',                       'Número de copias por ticket de venta'),
+        ('nombre_negocio',        'Tortillería Carmelita', 'Nombre del negocio'),
+        ('direccion',             '',                       'Dirección del local'),
+        ('telefono_negocio',      '',                       'Teléfono del negocio'),
+        ('rfc',                   '',                       'RFC (opcional)'),
+        ('precio_tortilla',       '23.0',                  'Precio por kg de tortilla'),
+        ('unidad_venta',          'kg',                    'Unidad de medida para venta'),
+        ('punto_reorden_default', '10.0',                  'Stock mínimo antes de alertar'),
+        # ── Producción ────────────────────────────────────────────────
+        ('kg_por_bulto_harina',   '20',                    'Peso en kg de un bulto de harina'),
+        ('tortilla_por_bulto',    '40',                    'Kg de tortilla que produce 1 bulto de harina'),
+        # ── Caja ──────────────────────────────────────────────────────
+        ('fondo_apertura_default','200.0',                 'Fondo con que abre la caja normalmente'),
+        ('impresora_ticket',      '',                       'Puerto/nombre de la impresora'),
+        ('copias_ticket',         '1',                      'Copias por ticket de venta'),
     ]
 
     cursor.executemany("""
@@ -259,19 +269,14 @@ def crear_base_de_datos():
     print("✅ Base de datos creada correctamente.")
     print(f"   Ubicación: {DB_PATH}")
     print()
-    print("Tablas creadas:")
-    print("  • Categoria              — categorías de artículos")
-    print("  • Proveedor              — proveedores de insumos")
-    print("  • Usuarios               — usuarios del sistema (admin / trabajador)")
-    print("  • Configuracion          — parámetros del negocio (clave-valor)")
-    print("  • Articulo               — catálogo de productos e insumos")
-    print("  • Turno                  — sesiones de caja / corte")
-    print("  • MovimientoCaja         — gastos y entradas extra por turno")
-    print("  • Venta                  — registro de ventas")
-    print("  • DetalleVenta           — ítems de cada venta")
-    print("  • Compra                 — compras a proveedores")
-    print("  • DetalleCompra          — ítems de cada compra")
-    print("  • MovimientoInventario   — auditoría de cambios en existencias")
+    print("Tablas:")
+    print("  • Categoria, Proveedor, Usuarios, Configuracion")
+    print("  • Articulo  (TORTILLA001 + HARINA001)")
+    print("  • RecetaProduccion  ← nueva  (1 bulto → 40 kg)")
+    print("  • Turno, MovimientoCaja")
+    print("  • Venta, DetalleVenta")
+    print("  • Compra, DetalleCompra")
+    print("  • MovimientoInventario  (+ salida_produccion)")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 import conexion
-from botones import configurar_estilos
+from botones import configurar_estilos, COLORES_MODULOS
 
 CODIGO_TORTILLA = "TORTILLA001"
 
@@ -59,20 +59,20 @@ class VentaApp:
 
     def _build_ui(self):
         self._limpiar()
-        self.container.configure(bg="#FFF8E7")
+        self.container.configure(bg=COLORES_MODULOS['fondo_contenedor'])
 
         # Título
-        title = tk.Frame(self.container, bg="#C47A2B", padx=10, pady=6)
+        title = tk.Frame(self.container, bg=COLORES_MODULOS['encabezado_bg'], padx=10, pady=6)
         title.pack(fill=tk.X)
         tk.Label(title, text="🛒  VENTAS",
                  font=("Tahoma", 14, "bold"),
-                 fg="#FFF8E7", bg="#C47A2B").pack(side=tk.LEFT)
+                 fg=COLORES_MODULOS['encabezado_fg_claro'], bg=COLORES_MODULOS['encabezado_bg']).pack(side=tk.LEFT)
         tk.Label(title, text=f"Precio: ${self.precio_por_kg:.2f} / kg",
                  font=("Tahoma", 11),
-                 fg="#F2C94C", bg="#C47A2B").pack(side=tk.RIGHT)
+                 fg=COLORES_MODULOS['encabezado_fg_accent'], bg=COLORES_MODULOS['encabezado_bg']).pack(side=tk.RIGHT)
 
         # Cuerpo en dos columnas
-        cuerpo = tk.Frame(self.container, bg="#FFF8E7")
+        cuerpo = tk.Frame(self.container, bg=COLORES_MODULOS['fondo_contenedor'])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         cuerpo.columnconfigure(0, weight=3)
         cuerpo.columnconfigure(1, weight=2)
@@ -83,23 +83,23 @@ class VentaApp:
 
     def _panel_ticket(self, parent):
         """Columna izquierda: entrada de kg/precio + tabla del ticket."""
-        left = tk.Frame(parent, bg="#FFF8E7")
+        left = tk.Frame(parent, bg=COLORES_MODULOS['fondo_contenedor'])
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
 
         # ── Entrada ───────────────────────────────────────────────────────────
         entrada = tk.LabelFrame(left, text="  Agregar venta  ",
-                                bg="#FFF8E7", fg="#7B3F00",
+                                bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal'],
                                 font=("Tahoma", 10, "bold"),
                                 bd=2, relief="groove")
         entrada.pack(fill=tk.X, pady=(0, 8))
 
-        fila = tk.Frame(entrada, bg="#FFF8E7")
+        fila = tk.Frame(entrada, bg=COLORES_MODULOS['fondo_contenedor'])
         fila.pack(padx=10, pady=10)
 
         # Kilogramos
         tk.Label(fila, text="Kilogramos:",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").grid(row=0, column=0, sticky="e", padx=6, pady=4)
+                 bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal']).grid(row=0, column=0, sticky="e", padx=6, pady=4)
         self.var_kg = tk.StringVar()
         self.entry_kg = ttk.Entry(fila, textvariable=self.var_kg,
                                   font=("Tahoma", 12), width=10)
@@ -108,12 +108,12 @@ class VentaApp:
         self.entry_kg.bind("<FocusOut>", lambda e: self._calc_desde_kg())
 
         tk.Label(fila, text="↔", font=("Tahoma", 14),
-                 bg="#FFF8E7", fg="#C47A2B").grid(row=0, column=2, padx=4)
+                 bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['encabezado_bg']).grid(row=0, column=2, padx=4)
 
         # Precio
         tk.Label(fila, text="Precio ($):",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").grid(row=0, column=3, sticky="e", padx=6, pady=4)
+                 bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal']).grid(row=0, column=3, sticky="e", padx=6, pady=4)
         self.var_precio_item = tk.StringVar()
         self.entry_precio = ttk.Entry(fila, textvariable=self.var_precio_item,
                                       font=("Tahoma", 12), width=10)
@@ -127,24 +127,24 @@ class VentaApp:
 
         tk.Label(entrada,
                  text="Escribe kg → se calcula el precio  |  Escribe precio → se calculan los kg",
-                 font=("Tahoma", 8), bg="#FFF8E7", fg="#C47A2B").pack(pady=(0, 6))
+                 font=("Tahoma", 8), bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['encabezado_bg']).pack(pady=(0, 6))
 
         # ── Tabla ticket ──────────────────────────────────────────────────────
-        tabla_frame = tk.Frame(left, bg="#FFF8E7")
+        tabla_frame = tk.Frame(left, bg=COLORES_MODULOS['fondo_contenedor'])
         tabla_frame.pack(fill=tk.BOTH, expand=True)
 
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("Carmelita.Treeview",
-                        background="#FFFFFF", fieldbackground="#FFFFFF",
-                        foreground="#7B3F00", rowheight=30,
+                        background=COLORES_MODULOS['fondo_card'], fieldbackground=COLORES_MODULOS['fondo_card'],
+                        foreground=COLORES_MODULOS['texto_principal'], rowheight=30,
                         font=("Tahoma", 11))
         style.configure("Carmelita.Treeview.Heading",
-                        background="#7B3F00", foreground="#F2C94C",
+                        background=COLORES_MODULOS['tree_heading_bg'], foreground=COLORES_MODULOS['tree_heading_fg'],
                         font=("Tahoma", 11, "bold"))
         style.map("Carmelita.Treeview",
-                  background=[("selected", "#C47A2B")],
-                  foreground=[("selected", "#FFFFFF")])
+                  background=[("selected", COLORES_MODULOS['tree_selected_bg'])],
+                  foreground=[("selected", COLORES_MODULOS['tree_selected_fg'])])
 
         cols = ("producto", "kilogramos", "precio")
         self.tree = ttk.Treeview(tabla_frame, columns=cols,
@@ -162,7 +162,7 @@ class VentaApp:
         self.tree.configure(yscrollcommand=lambda f, s: None)
 
         # Botones ticket
-        btn_row = tk.Frame(left, bg="#FFF8E7")
+        btn_row = tk.Frame(left, bg=COLORES_MODULOS['fondo_contenedor'])
         btn_row.pack(fill=tk.X, pady=4)
         ttk.Button(btn_row, text="Eliminar seleccionado",
                    style="Peligro.TButton",
@@ -175,21 +175,21 @@ class VentaApp:
 
     def _panel_cobro(self, parent):
         """Columna derecha: total, monto recibido, cambio y botón cobrar."""
-        right = tk.Frame(parent, bg="#FFF8E7")
+        right = tk.Frame(parent, bg=COLORES_MODULOS['fondo_contenedor'])
         right.grid(row=0, column=1, sticky="nsew")
 
         cobro = tk.LabelFrame(right, text="  Cobro  ",
-                               bg="#FFF8E7", fg="#7B3F00",
+                               bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal'],
                                font=("Tahoma", 10, "bold"),
                                bd=2, relief="groove")
         cobro.pack(fill=tk.BOTH, expand=True)
 
         # Total
         tk.Label(cobro, text="Total a cobrar:",
-                 font=("Tahoma", 11), bg="#FFF8E7", fg="#7B3F00").pack(pady=(20, 4))
+                 font=("Tahoma", 11), bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal']).pack(pady=(20, 4))
         self.lbl_total = tk.Label(cobro, text="$0.00",
                                   font=("Tahoma", 28, "bold"),
-                                  bg="#FFF8E7", fg="#7B3F00")
+                                  bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal'])
         self.lbl_total.pack()
 
         ttk.Separator(cobro, orient="horizontal").pack(fill=tk.X, padx=20, pady=15)
@@ -197,7 +197,7 @@ class VentaApp:
         # Monto recibido
         tk.Label(cobro, text="Monto recibido ($):",
                  font=("Tahoma", 11, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(pady=(0, 4))
+                 bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal']).pack(pady=(0, 4))
         self.var_recibido = tk.StringVar()
         self.entry_recibido = ttk.Entry(cobro, textvariable=self.var_recibido,
                                         font=("Tahoma", 14), width=14,
@@ -208,10 +208,10 @@ class VentaApp:
 
         # Cambio
         tk.Label(cobro, text="Cambio:",
-                 font=("Tahoma", 11), bg="#FFF8E7", fg="#7B3F00").pack(pady=(16, 4))
+                 font=("Tahoma", 11), bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal']).pack(pady=(16, 4))
         self.lbl_cambio = tk.Label(cobro, text="$0.00",
                                    font=("Tahoma", 22, "bold"),
-                                   bg="#FFF8E7", fg="#2D6A4F")
+                                   bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_exito'])
         self.lbl_cambio.pack()
 
         ttk.Separator(cobro, orient="horizontal").pack(fill=tk.X, padx=20, pady=15)
@@ -253,7 +253,15 @@ class VentaApp:
             messagebox.showwarning("Valor inválido", "Los valores deben ser mayores a cero.")
             return
 
-        self.items.append({"nombre": "Tortilla", "kg": kg, "subtotal": round(precio, 2)})
+        subtotal = round(precio, 2)
+        for item in self.items:
+            if item["nombre"] == "Tortilla":
+                item["kg"] += kg
+                item["subtotal"] = round(item["subtotal"] + subtotal, 2)
+                break
+        else:
+            self.items.append({"nombre": "Tortilla", "kg": kg, "subtotal": subtotal})
+
         self.var_kg.set("")
         self.var_precio_item.set("")
         self.entry_kg.focus()
@@ -295,10 +303,10 @@ class VentaApp:
             total    = sum(i["subtotal"] for i in self.items)
             recibido = float(self.var_recibido.get().replace(",", "."))
             cambio   = recibido - total
-            color    = "#2D6A4F" if cambio >= 0 else "#A93226"
+            color    = COLORES_MODULOS['texto_exito'] if cambio >= 0 else COLORES_MODULOS['texto_error']
             self.lbl_cambio.config(text=f"${max(cambio, 0):.2f}", fg=color)
         except ValueError:
-            self.lbl_cambio.config(text="$0.00", fg="#2D6A4F")
+            self.lbl_cambio.config(text="$0.00", fg=COLORES_MODULOS['texto_exito'])
 
     def _cobrar(self):
         if not self.items:

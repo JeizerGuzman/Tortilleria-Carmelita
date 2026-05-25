@@ -3,7 +3,11 @@ from tkinter import messagebox, ttk
 from PIL import Image, ImageTk
 import os
 import conexion
-from botones import configurar_estilos
+from botones import configurar_estilos, COLORES_MODULOS
+from crear_db import crear_base_de_datos
+
+if not os.path.exists(conexion.obtener_db_path()):
+    crear_base_de_datos()
 
 
 class VentanaLogin:
@@ -11,9 +15,10 @@ class VentanaLogin:
         self.ventana = tk.Tk()
         self.ventana.title("Tortillería Carmelita — Iniciar Sesión")
         self.ventana.state("zoomed")
-        self.ventana.config(bg="#FFF8E7")
+        self.ventana.config(bg=COLORES_MODULOS['fondo_contenedor'])
         self.ventana.resizable(False, False)
         configurar_estilos(self.ventana)
+        self._cargar_icono()
 
         # Conexión SQLite
         self.db     = conexion.conectar()
@@ -27,11 +32,11 @@ class VentanaLogin:
             self.ventana,
             width=420,
             height=520,
-            bg="#FFF8E7",
+            bg=COLORES_MODULOS['fondo_contenedor'],
             bd=2,
             relief="groove",
-            highlightbackground="#C47A2B",
-            highlightcolor="#C47A2B",
+            highlightbackground=COLORES_MODULOS['encabezado_bg'],
+            highlightcolor=COLORES_MODULOS['encabezado_bg'],
         )
         # Centrar horizontalmente y verticalmente con place
         self.widget.place(relx=0.5, rely=0.5, anchor="center")
@@ -45,36 +50,36 @@ class VentanaLogin:
 
         style.configure('Enhanced.TCombobox',
                         font=('Tahoma', 12),
-                        foreground='#7B3F00',
-                        background='#FFF8E7',
-                        bordercolor='#C47A2B',
+                        foreground=COLORES_MODULOS['texto_principal'],
+                        background=COLORES_MODULOS['fondo_contenedor'],
+                        bordercolor=COLORES_MODULOS['encabezado_bg'],
                         arrowsize=14,
                         padding=(6, 4),
                         relief='solid',
                         borderwidth=1)
         style.map('Enhanced.TCombobox',
-                  fieldbackground=[('readonly', '#FFF8E7')],
-                  selectbackground=[('readonly', '#F2C94C')],
-                  selectforeground=[('readonly', '#7B3F00')],
-                  bordercolor=[('focus', '#7B3F00')],
+                  fieldbackground=[('readonly', COLORES_MODULOS['fondo_contenedor'])],
+                  selectbackground=[('readonly', COLORES_MODULOS['encabezado_fg_accent'])],
+                  selectforeground=[('readonly', COLORES_MODULOS['texto_principal'])],
+                  bordercolor=[('focus', COLORES_MODULOS['texto_principal'])],
                   arrowsize=[('pressed', 12), ('!pressed', 14)])
 
         style.configure('Modern.TEntry',
                         font=('Tahoma', 12),
-                        foreground='#7B3F00',
-                        background='#FFF8E7',
-                        bordercolor='#C47A2B',
+                        foreground=COLORES_MODULOS['texto_principal'],
+                        background=COLORES_MODULOS['fondo_contenedor'],
+                        bordercolor=COLORES_MODULOS['encabezado_bg'],
                         padding=(6, 4),
                         relief='solid',
                         borderwidth=1)
         style.map('Modern.TEntry',
-                  bordercolor=[('focus', '#7B3F00')],
-                  fieldbackground=[('!disabled', '#FFF8E7')])
+                  bordercolor=[('focus', COLORES_MODULOS['texto_principal'])],
+                  fieldbackground=[('!disabled', COLORES_MODULOS['fondo_contenedor'])])
 
         # ── Usuario ───────────────────────────────────────────────────────────
         tk.Label(self.widget, text="Usuario",
                  font=("Tahoma", 12, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack(pady=(15, 0))
+                 bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal']).pack(pady=(15, 0))
 
         self.nombre_var = tk.StringVar()
 
@@ -105,13 +110,13 @@ class VentanaLogin:
         # Rol mostrado
         self.rol_label = tk.Label(self.widget, text="Rol: ",
                                   font=("Tahoma", 12),
-                                  bg="#FFF8E7", fg="#C47A2B")
+                                  bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['encabezado_bg'])
         self.rol_label.pack(pady=5)
 
         # ── Contraseña ────────────────────────────────────────────────────────
         tk.Label(self.widget, text="Contraseña",
                  font=("Tahoma", 12, "bold"),
-                 bg="#FFF8E7", fg="#7B3F00").pack()
+                 bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal']).pack()
 
         self.entry_pwd = ttk.Entry(
             self.widget,
@@ -128,9 +133,9 @@ class VentanaLogin:
                        variable=self.var_show,
                        command=self._ver_contraseña,
                        font=("Tahoma", 12),
-                       bg="#FFF8E7", fg="#7B3F00",
-                       activebackground="#FFF8E7",
-                       selectcolor="#F2C94C").pack(pady=10)
+                       bg=COLORES_MODULOS['fondo_contenedor'], fg=COLORES_MODULOS['texto_principal'],
+                       activebackground=COLORES_MODULOS['fondo_contenedor'],
+                       selectcolor=COLORES_MODULOS['encabezado_fg_accent']).pack(pady=10)
 
         # Botón Iniciar
         ttk.Button(self.widget, text="Iniciar Sesión",
@@ -143,6 +148,16 @@ class VentanaLogin:
             self._mostrar_rol(None)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _cargar_icono(self):
+        dir_act = os.path.dirname(os.path.abspath(__file__))
+        ruta = os.path.join(dir_act, "imagen", "logoApp.png")
+        try:
+            icono = Image.open(ruta).resize((48, 48), Image.Resampling.LANCZOS)
+            self.icono_img = ImageTk.PhotoImage(icono)
+            self.ventana.iconphoto(True, self.icono_img)
+        except Exception:
+            pass
 
     def _cargar_fondo(self):
         dir_act = os.path.dirname(os.path.abspath(__file__))
@@ -163,10 +178,10 @@ class VentanaLogin:
         try:
             logo = Image.open(ruta).resize((280, 160), Image.Resampling.LANCZOS)
             self.logo_img = ImageTk.PhotoImage(logo)
-            frame = tk.Frame(self.widget, bg="#FFF8E7", width=300, height=200)
+            frame = tk.Frame(self.widget, bg=COLORES_MODULOS['fondo_contenedor'], width=300, height=200)
             frame.pack()
             frame.pack_propagate(False)
-            tk.Label(frame, image=self.logo_img, bg="#FFF8E7").pack(pady=20)
+            tk.Label(frame, image=self.logo_img, bg=COLORES_MODULOS['fondo_contenedor']).pack(pady=20)
         except Exception:
             pass
 
@@ -209,10 +224,18 @@ class VentanaLogin:
             messagebox.showerror("Error", "Contraseña incorrecta.")
             return
 
+        # Obtener el rol real del usuario y enviarlo al menú
+        self.cursor.execute(
+            "SELECT rol FROM Usuarios WHERE nombre = ? AND activo = 1",
+            (nombre,)
+        )
+        rol_row = self.cursor.fetchone()
+        rol = (rol_row[0] if rol_row and rol_row[0] else "trabajador").lower()
+
         # Login exitoso → abrir menú principal
         from menu import PuntoDeVenta
         self.widget.destroy()
-        PuntoDeVenta(self.ventana, usuario=nombre).main()
+        PuntoDeVenta(self.ventana, usuario=nombre, rol=rol).main()
 
     def run(self):
         self.ventana.mainloop()

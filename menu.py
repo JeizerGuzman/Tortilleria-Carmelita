@@ -2,21 +2,56 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 import locale
+import os
+from PIL import Image, ImageTk
+import conexion
 from contraseña import VentanaLogin
 from botones import configurar_estilos, UI
+
+def _obtener_nombre_negocio():
+    """Obtiene el nombre del negocio desde la BD."""
+    try:
+        db = conexion.conectar()
+        cursor = db.cursor()
+        cursor.execute("SELECT valor FROM Configuracion WHERE clave = 'nombre_negocio'")
+        row = cursor.fetchone()
+        resultado = row[0] if row else "Tortillería Carmelita"
+        db.close()
+        return resultado
+    except:
+        return "Tortillería Carmelita"
 
 class PuntoDeVenta:
     def __init__(self, root=None, usuario="Administrador", rol="administrador"):
         self.usuario = usuario
         self.rol     = rol.lower()
         self.root    = root if root else tk.Tk()
-        self.root.title("Tortillería Carmelita — Punto de Venta")
+        self.nombre_negocio = _obtener_nombre_negocio()
+        self.root.title(f"{self.nombre_negocio} — Punto de Venta")
         self.root.state("zoomed")
         self.root.configure(bg="#FFF8E7")
         self.root.resizable(False, False)
         configurar_estilos(self.root)
+        self._cargar_icono()
 
     # ── Navegación principal ──────────────────────────────────────────────────
+
+    def _cargar_icono(self):
+        dir_act = os.path.dirname(os.path.abspath(__file__))
+        ruta = os.path.join(dir_act, "imagen", "logoApp.png")
+        try:
+            icono = Image.open(ruta).resize((48, 48), Image.Resampling.LANCZOS)
+            self.icono_img = ImageTk.PhotoImage(icono)
+            self.root.iconphoto(True, self.icono_img)
+        except Exception:
+            pass
+
+    def recargar_nombre_negocio(self):
+        """Recarga el nombre del negocio desde la BD y actualiza la UI."""
+        self.nombre_negocio = _obtener_nombre_negocio()
+        self.root.title(f"{self.nombre_negocio} — Punto de Venta")
+        if hasattr(self, 'lbl_nombre_negocio'):
+            self.lbl_nombre_negocio.config(text=f"🫓 {self.nombre_negocio}")
 
     def _limpiar_contenedor(self):
         for w in self.frame_contenedor.winfo_children():
@@ -82,15 +117,15 @@ class PuntoDeVenta:
         botones = [
             ("Ver existencias", self.on_inv_existencias),
             ("Movimientos",     self.on_inv_movimientos),
-            ("Producción",      self.on_inv_produccion),   # ← nueva línea
+            ("Producción",      self.on_inv_produccion),
+            ("Ajuste manual",   self.on_inv_ajuste),
         ]
 
         # Botones exclusivos de administrador
         if self.rol == "administrador":
             botones += [
-                ("Ajuste manual", self.on_inv_ajuste),
-                ("Artículos",     self.on_inv_articulos),
-                ("Categorías",    self.on_inv_categorias),
+                ("Artículos",  self.on_inv_articulos),
+                ("Categorías", self.on_inv_categorias),
             ]
 
         self._mostrar_secundario(botones)
@@ -141,15 +176,19 @@ class PuntoDeVenta:
         self.on_rep_dia()
 
     def on_configuracion(self):
-        if not self._solo_admin():
-            return
         self._limpiar_contenedor()
-        self._mostrar_secundario([
-            ("General",        self.on_conf_general),
-            ("Usuarios",       self.on_conf_usuarios),
-            ("Mi contraseña",  self.on_conf_contrasena),
-        ])
-        self.on_conf_general()
+        if self.rol == "administrador":
+            self._mostrar_secundario([
+                ("General",        self.on_conf_general),
+                ("Usuarios",       self.on_conf_usuarios),
+                ("Mi contraseña",  self.on_conf_contrasena),
+            ])
+            self.on_conf_general()
+        else:
+            self._mostrar_secundario([
+                ("Mi contraseña", self.on_conf_contrasena),
+            ])
+            self.on_conf_contrasena()
 
     # ── Sub-módulos Inventario ────────────────────────────────────────────────
 
@@ -166,7 +205,7 @@ class PuntoDeVenta:
     def on_inv_ajuste(self):
         self._limpiar_frame()
         from inventario import InventarioAjuste
-        InventarioAjuste(self.frame_contenedor)
+        InventarioAjuste(self.frame_contenedor, self.usuario)
 
     def on_inv_articulos(self):
         self._limpiar_frame()
@@ -234,7 +273,7 @@ class PuntoDeVenta:
     def on_conf_general(self):
         self._limpiar_frame()
         from configuracion import ConfigGeneral
-        ConfigGeneral(self.frame_contenedor)
+        ConfigGeneral(self.frame_contenedor, self)
 
     def on_conf_usuarios(self):
         self._limpiar_frame()
@@ -286,10 +325,11 @@ class PuntoDeVenta:
         # ── Cabecera ──────────────────────────────────────────────────────────
         cabecera = tk.Frame(self.root, bg=UI['cabecera_bg'], height=30)
         cabecera.pack(side=tk.TOP, fill=tk.X)
-        tk.Label(cabecera, text="🫓 Tortillería Carmelita",
+        self.lbl_nombre_negocio = tk.Label(cabecera, text=f"🫓 {self.nombre_negocio}",
                  font=("Tahoma", 10, "bold"),
                  bg=UI['cabecera_bg'],
-                 fg=UI['cabecera_fg']).pack(side=tk.LEFT, padx=10, pady=5)
+                 fg=UI['cabecera_fg'])
+        self.lbl_nombre_negocio.pack(side=tk.LEFT, padx=10, pady=5)
         tk.Label(cabecera, text=f"Atiende: {self.usuario}",
                  font=("Tahoma", 10, "bold"),
                  bg=UI['cabecera_bg'],
@@ -305,9 +345,9 @@ class PuntoDeVenta:
             ("Compras",       self.on_compras,       es_admin),
             ("Caja",          self.on_caja,          True),
             ("Reportes",      self.on_reportes,      es_admin),
-            ("Configuración", self.on_configuracion, es_admin),
+            ("Configuración", self.on_configuracion, True),
         ]
- 
+
         for texto, comando, visible in botones_menu:
             if visible:
                 ttk.Button(menu, text=texto,
