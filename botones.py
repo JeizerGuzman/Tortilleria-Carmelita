@@ -103,6 +103,23 @@ def configurar_estilos(raiz):
             foreground=[('active', PALETA_COLORES['TEXTO_OSCURO'])],
         )
 
+    # Estilo especial para botones ACTIVOS/PRESIONADOS — efecto visual de "dentro"
+    estilo.configure(
+        "Activo.TButton",
+        font=('Tahoma', 10, 'bold'),
+        padding=(10, 6),
+        background=PALETA_COLORES['VERDE_OSCURO'],  # Color más profundo
+        foreground='#FFFFFF',  # Texto blanco
+        bordercolor=PALETA_COLORES['VERDE_OSCURO'],
+        relief='sunken',  # Efecto hundido — como si estuviera presionado
+        borderwidth=2,
+    )
+    estilo.map(
+        "Activo.TButton",
+        background=[('active', PALETA_COLORES['VERDE_OSCURO'])],
+        foreground=[('active', PALETA_COLORES['AMARILLO_MAIZ'])],
+    )
+
     estilo.configure(
         "TRadiobutton",
         font=('Tahoma', 10),

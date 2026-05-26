@@ -161,16 +161,6 @@ class VentaApp:
         ttk.Scrollbar(tabla_frame, command=self.tree.yview).pack(side=tk.LEFT, fill=tk.Y)
         self.tree.configure(yscrollcommand=lambda f, s: None)
 
-        # Botones ticket
-        btn_row = tk.Frame(left, bg=COLORES_MODULOS['fondo_contenedor'])
-        btn_row.pack(fill=tk.X, pady=4)
-        ttk.Button(btn_row, text="Eliminar seleccionado",
-                   style="Peligro.TButton",
-                   command=self._eliminar).pack(side=tk.LEFT, padx=4)
-        ttk.Button(btn_row, text="Vaciar ticket",
-                   style="Peligro.TButton",
-                   command=self._vaciar).pack(side=tk.LEFT, padx=4)
-
         self.entry_kg.focus()
 
     def _panel_cobro(self, parent):
@@ -281,17 +271,8 @@ class VentaApp:
         self.lbl_total.config(text=f"${total:.2f}")
         self._calcular_cambio()
 
-    def _eliminar(self):
-        seleccion = self.tree.selection()
-        if not seleccion:
-            return
-        indices = sorted([self.tree.index(i) for i in seleccion], reverse=True)
-        for idx in indices:
-            if idx < len(self.items):
-                self.items.pop(idx)
-        self._refrescar()
-
     def _vaciar(self):
+        """Limpia el ticket completo."""
         self.items.clear()
         self.var_recibido.set("")
         self._refrescar()

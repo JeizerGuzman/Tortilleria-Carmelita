@@ -32,6 +32,12 @@ class PuntoDeVenta:
         self.root.configure(bg="#FFF8E7")
         self.root.resizable(False, False)
         configurar_estilos(self.root)
+        
+        # Estado de navegación
+        self.modulo_activo = None  # Rastrear módulo activo
+        self.botones_menu = {}     # Guardar referencias a botones
+        self.botones_secundario = {}  # Guardar referencias a submenú
+        
         self._cargar_icono()
 
     # ── Navegación principal ──────────────────────────────────────────────────
@@ -53,6 +59,26 @@ class PuntoDeVenta:
         if hasattr(self, 'lbl_nombre_negocio'):
             self.lbl_nombre_negocio.config(text=f"🫓 {self.nombre_negocio}")
 
+    def _resaltar_modulo(self, modulo_nombre):
+        """Resalta el botón del módulo activo y desresalta los otros."""
+        # Desresaltar todos los botones
+        for nombre, btn in self.botones_menu.items():
+            btn.config(style="Maiz.TButton")  # Estilo normal (amarillo maíz)
+        
+        # Resaltar el botón activo — efecto presionado
+        if modulo_nombre in self.botones_menu:
+            self.botones_menu[modulo_nombre].config(style="Activo.TButton")
+        
+        self.modulo_activo = modulo_nombre
+
+    def _resaltar_secundario(self, nombre_btn):
+        """Resalta botón del submenu activo."""
+        for nombre, btn in self.botones_secundario.items():
+            btn.config(style="Cafe.TButton")  # Estilo normal
+        
+        if nombre_btn in self.botones_secundario:
+            self.botones_secundario[nombre_btn].config(style="Activo.TButton")
+
     def _limpiar_contenedor(self):
         for w in self.frame_contenedor.winfo_children():
             w.destroy()
@@ -65,14 +91,23 @@ class PuntoDeVenta:
         self.frame_secundario.pack(side=tk.TOP, fill=tk.X)
         for w in self.frame_secundario.winfo_children():
             w.destroy()
+        self.botones_secundario.clear()
+        
         for texto, comando in botones:
-            ttk.Button(
+            btn = ttk.Button(
                 self.frame_secundario,
                 text=texto,
                 style="Cafe.TButton",
-                command=comando,
+                command=lambda t=texto, c=comando: (self._resaltar_secundario(t), c()),
                 width=18
-            ).pack(side=tk.LEFT, padx=4, pady=4)
+            )
+            btn.pack(side=tk.LEFT, padx=4, pady=4)
+            self.botones_secundario[texto] = btn
+        
+        # Resaltar el primer botón por defecto con estilo activo
+        if self.botones_secundario:
+            first_key = list(self.botones_secundario.keys())[0]
+            self.botones_secundario[first_key].config(style="Activo.TButton")
 
     def _turno_abierto(self):
         """Verifica si hay un turno abierto en la BD."""
@@ -339,7 +374,7 @@ class PuntoDeVenta:
         menu = tk.Frame(self.root, bg=UI['menu_bg'])
         menu.pack(side=tk.TOP, fill=tk.X)
  
-        botones_menu = [
+        botones_menu_config = [
             ("Ventas",        self.on_ventas,        True),
             ("Inventario",    self.on_inventario,    True),
             ("Compras",       self.on_compras,       es_admin),
@@ -348,12 +383,14 @@ class PuntoDeVenta:
             ("Configuración", self.on_configuracion, True),
         ]
 
-        for texto, comando, visible in botones_menu:
+        for texto, comando, visible in botones_menu_config:
             if visible:
-                ttk.Button(menu, text=texto,
+                btn = ttk.Button(menu, text=texto,
                            style=UI['menu_btn_style'],
-                           command=comando,
-                           width=14).pack(side=tk.LEFT, padx=4, pady=5)
+                           command=lambda t=texto, c=comando: (self._resaltar_modulo(t), c()),
+                           width=14)
+                btn.pack(side=tk.LEFT, padx=4, pady=5)
+                self.botones_menu[texto] = btn
  
         ttk.Button(menu, text="Salir",
                    style="Peligro.TButton", width=10,
